@@ -73,6 +73,8 @@ export default function App() {
   const [mode, setModeState] = useState<Mode>('answer');
   const [deviceStatus, setDeviceStatus] = useState<{ battery?: number; wearing?: boolean } | null>(null);
   const [parentName, setParentName] = useState<string>('');
+  const [audioBytes, setAudioBytes] = useState(0);
+  const [lastResolve, setLastResolve] = useState<ResolveResult | null>(null);
 
   // Keep state mirrored for async callbacks (device status listener).
   useEffect(() => { stateRef.current = state; }, [state]);
@@ -138,7 +140,9 @@ export default function App() {
 
       unsub = b.onEvenHubEvent((ev: AnyEvent) => {
         if (ev.audioEvent?.audioPcm != null) {
-          audioBuffer.current.push(toUint8Array(ev.audioEvent.audioPcm));
+          const chunk = toUint8Array(ev.audioEvent.audioPcm);
+          audioBuffer.current.push(chunk);
+          setAudioBytes((n) => n + chunk.length);
           return;
         }
         // IMU samples for nod/shake gesture detection (active only while
@@ -220,6 +224,7 @@ export default function App() {
       toneRef.current = activeInsights().preferredTone;
       modeRef.current = mode;
       audioBuffer.current = [];
+      setAudioBytes(0);
       bridge.audioControl?.(true).catch(() => {});
       maxTimer = window.setTimeout(() => dispatch({ type: 'stop-listen' }), LISTEN_MAX_MS);
     } else if (state.kind === 'thinking') {
@@ -263,12 +268,13 @@ export default function App() {
         (async () => {
           const tone = toneRef.current;
           const modeNow = modeRef.current;
-          const q = await resolveQuestion(frames, stage, isMock, tone, modeNow, mem, (p) =>
+          const res = await resolveQuestion(frames, stage, isMock, tone, modeNow, mem, (p) =>
             dispatch({ type: 'stream-say', partial: p })
           );
           if (cancelled) return;
-          setLastQuestion(q.text);
-          dispatch({ type: 'heard', q, tone, mode: modeNow });
+          setLastResolve(res);
+          setLastQuestion(res.q.text);
+          dispatch({ type: 'heard', q: res.q, tone, mode: modeNow });
         })();
       }
     } else if (state.kind === 'transcript') {
@@ -515,6 +521,17 @@ export default function App() {
           State: <code>{state.kind}</code>
           {lastQuestion && <span className="last-q"> · last Q: "{lastQuestion}"</span>}
         </div>
+        <div className="diag">
+          <span className="diag-chip">audio: {audioBytes.toLocaleString()} B</span>
+          {lastResolve && (
+            <span className={`diag-chip diag-${lastResolve.source}`}>
+              resolve: {lastResolve.source}
+              {lastResolve.source === 'short' && ` (${lastResolve.bytes} B, need \u2265 9600)`}
+              {lastResolve.source === 'error' && ` \u2014 ${lastResolve.error}`}
+              {lastResolve.source === 'live' && ` (${(lastResolve.bytes / 32000).toFixed(1)}s of audio)`}
+            </span>
+          )}
+        </div>
         {import.meta.env.DEV && (
           <div className="mock-controls">
             <button onClick={() => devFire(EventType.DOUBLE_CLICK)}>double (D)</button>
@@ -666,6 +683,16 @@ function renderForState(state: State): string {
 }
 
 // Decide how to turn the captured audio into a Question.
+// Returns a tagged result so the UI can tell the user WHY the canned fallback
+// fired — "you got a random moon answer" with no explanation is a terrible
+// failure mode on stage.
+export interface ResolveResult {
+  q: Question;
+  source: 'live' | 'short' | 'error' | 'stage' | 'mock';
+  bytes: number;
+  error?: string;
+}
+
 async function resolveQuestion(
   frames: Uint8Array[],
   stage: boolean,
@@ -674,13 +701,10 @@ async function resolveQuestion(
   mode: Mode,
   memoryBlock: string | undefined,
   onPartialSay: (s: string) => void,
-): Promise<Question> {
+): Promise<ResolveResult> {
   const canned = () => {
     const base = DEMO_QUESTIONS[Math.floor(Math.random() * DEMO_QUESTIONS.length)];
     if (mode === 'answer') return base;
-    // Stage-mode Bounce: repurpose the canned content into the Bounce
-    // shape so the demo works offline. Not as funny as live Gemini, but
-    // the shape lets the whole flow run.
     return {
       ...base,
       say: `What color should the ${stagedNoun(base.text)} be?`.slice(0, 60),
@@ -689,21 +713,24 @@ async function resolveQuestion(
     };
   };
 
-  if (stage || mock) return canned();
+  if (stage) return { q: canned(), source: 'stage', bytes: 0 };
+  if (mock) return { q: canned(), source: 'mock', bytes: 0 };
 
   const pcm = concatBytes(frames);
   const MIN_PCM_BYTES = 2 * PCM_SAMPLE_RATE * 0.3; // 300ms of PCM16 mono
   if (pcm.length < MIN_PCM_BYTES) {
-    console.warn('[wondercue] audio too short or missing; falling back to canned');
-    return canned();
+    console.warn(`[wondercue] audio too short (${pcm.length} bytes); falling back to canned`);
+    return { q: canned(), source: 'short', bytes: pcm.length };
   }
 
   try {
     const wav = pcmToWav(pcm, PCM_SAMPLE_RATE);
-    return await askGeminiAudio(wav, tone, mode, { onPartialSay }, memoryBlock);
+    const q = await askGeminiAudio(wav, tone, mode, { onPartialSay }, memoryBlock);
+    return { q, source: 'live', bytes: pcm.length };
   } catch (err) {
-    console.warn('[wondercue] Gemini failed; falling back to canned:', err);
-    return canned();
+    const msg = String((err as Error)?.message || err).slice(0, 160);
+    console.warn('[wondercue] Gemini failed; falling back to canned:', msg);
+    return { q: canned(), source: 'error', bytes: pcm.length, error: msg };
   }
 }
 

@@ -55,6 +55,27 @@ header h1 {
 .hdr-batt { color: var(--green); }
 .hdr-warn { color: #ffb86b; font-weight: 600; letter-spacing: 0.4px; }
 
+.diag {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+.diag-chip {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  background: #0c1218;
+}
+.diag-live  { color: var(--green); border-color: #1d3a22; background: #102015; }
+.diag-short { color: #ffb86b; border-color: #4a3620; background: #221712; }
+.diag-error { color: #ff9a8a; border-color: #4a2620; background: #22120f; }
+.diag-stage { color: var(--accent); border-color: #264569; background: #0e1626; }
+.diag-mock  { color: var(--muted); }
+
 section {
   background: var(--panel);
   border: 1px solid #1c232b;
