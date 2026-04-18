@@ -221,11 +221,13 @@ function unescapeJson(s: string): string {
 }
 
 function finalize(text: string): Question {
-  let parsed: any;
-  try {
-    parsed = JSON.parse(text);
-  } catch {
-    throw new Error('Gemini: JSON parse failed');
+  const parsed = tryParseLenient(text);
+  if (!parsed) {
+    // Log the raw text so we can see what Gemini actually emitted. Truncate
+    // because transcripts + prompt echoes can be long.
+    const preview = text.slice(0, 400).replace(/\s+/g, ' ');
+    console.warn('[wondercue] Gemini JSON parse failed. First 400 chars:\n', preview);
+    throw new Error(`Gemini: JSON parse failed (got: ${preview.slice(0, 120)}\u2026)`);
   }
   return {
     text: String(parsed.questionText ?? '').trim() || '(unclear)',
@@ -234,6 +236,58 @@ function finalize(text: string): Question {
     ask: clampStr(parsed.ask, 50),
     try: clampStr(parsed.try_, 55),
   };
+}
+
+// Gemini's streamGenerateContent with responseMimeType=application/json
+// USUALLY returns a single JSON object, but SSE streams occasionally wrap
+// it in an array like `[{...}]`, or emit a leading/trailing wrapper. This
+// helper tries common recoveries before giving up.
+function tryParseLenient(text: string): any | null {
+  const trimmed = text.trim();
+  if (!trimmed) return null;
+
+  // 1. Straight parse
+  try { return JSON.parse(trimmed); } catch { /* fall through */ }
+
+  // 2. Array wrapping: some streams return `[{...}, {...}]`; merge objects.
+  if (trimmed.startsWith('[')) {
+    try {
+      const arr = JSON.parse(trimmed);
+      if (Array.isArray(arr)) {
+        return Object.assign({}, ...arr.filter((o) => o && typeof o === 'object'));
+      }
+    } catch { /* fall through */ }
+  }
+
+  // 3. Extract the first top-level object by brace balancing (tolerates
+  //    prefix/suffix noise or truncation).
+  const first = extractFirstJsonObject(trimmed);
+  if (first) {
+    try { return JSON.parse(first); } catch { /* fall through */ }
+  }
+
+  return null;
+}
+
+function extractFirstJsonObject(text: string): string | null {
+  const start = text.indexOf('{');
+  if (start < 0) return null;
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+    if (escaped) { escaped = false; continue; }
+    if (ch === '\\') { escaped = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (ch === '{') depth++;
+    else if (ch === '}') {
+      depth--;
+      if (depth === 0) return text.slice(start, i + 1);
+    }
+  }
+  return null;
 }
 
 function normalizeTopic(t: unknown): Topic {
