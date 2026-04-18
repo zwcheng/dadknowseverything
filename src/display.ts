@@ -57,13 +57,14 @@ export function renderListening(): string {
   return `* Listening...\npress once to stop`;
 }
 
-export function renderThinking(tick: number): string {
+// Thinking view doubles as the live-stream surface: if Gemini has started
+// emitting SAY tokens, paint them; otherwise show the spinner. This keeps
+// the "answer appears as it arrives" feel without a separate transition.
+export function renderThinking(tick: number, partialSay?: string): string {
+  if (partialSay && partialSay.trim().length > 0) {
+    return `${spinnerFrame(tick)} SAY\n${partialSay}`;
+  }
   return `${spinnerFrame(tick)} thinking...`;
-}
-
-export function renderTranscript(q: Question): string {
-  const qt = q.text.length > 70 ? q.text.slice(0, 67) + '\u2026' : q.text;
-  return `Heard you:\n"${qt}"`;
 }
 
 export function renderSaved(q: Question): string {

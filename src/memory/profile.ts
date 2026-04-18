@@ -52,7 +52,7 @@ export function emptyStore(): MemoryStore {
 export function defaultKid(): KidProfile {
   return {
     id: genId(),
-    name: 'Mia',
+    name: 'Even',
     age: 7,
     interests: ['space', 'dinosaurs', 'her dog Pepper'],
     languageLevel: 'early-elementary',

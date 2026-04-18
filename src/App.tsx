@@ -15,7 +15,6 @@ import {
   renderIdle,
   renderListening,
   renderThinking,
-  renderTranscript,
   renderSaved,
   upgradeCard,
 } from './display';
@@ -48,9 +47,8 @@ import { TOPIC_IMAGE, IMAGE_CONTAINER_ID, IMAGE_CONTAINER_NAME, imageContainer, 
 
 const LISTEN_MAX_MS = 8000;
 const SAVED_MS = 1400;
-const TRANSCRIPT_MS = 700;
-const SPINNER_TICK_MS = 100;
-const IMU_REPORT_PACE = 100;   // ms = ~10 Hz
+const SPINNER_TICK_MS = 250;    // 4 Hz — faster than this costs BT bandwidth on real G2
+const IMU_REPORT_PACE = 100;    // ms = ~10 Hz
 const PCM_SAMPLE_RATE = 16000;
 
 export default function App() {
@@ -198,8 +196,8 @@ export default function App() {
   useEffect(() => {
     if (!bridge) return;
     if (!imagesEnabled()) return;
-    if (state.kind !== 'showing' && state.kind !== 'transcript') return;
-    const topic = state.kind === 'showing' ? state.q.topic : state.q.topic;
+    if (state.kind !== 'showing') return;
+    const topic = state.q.topic;
     if (lastImageTopicRef.current === topic) return;
     lastImageTopicRef.current = topic;
     const data = TOPIC_IMAGE[topic];
@@ -216,7 +214,6 @@ export default function App() {
     if (!bridge) return;
     let maxTimer: number | undefined;
     let savedTimer: number | undefined;
-    let transcriptTimer: number | undefined;
     let spinnerInterval: number | undefined;
     let cancelled = false;
 
@@ -277,8 +274,6 @@ export default function App() {
           dispatch({ type: 'heard', q: res.q, tone, mode: modeNow });
         })();
       }
-    } else if (state.kind === 'transcript') {
-      transcriptTimer = window.setTimeout(() => dispatch({ type: 'show-cards' }), TRANSCRIPT_MS);
     } else if (state.kind === 'saved') {
       const activeKid = getActive(memoryRef.current);
       if (activeKid && bridge) {
@@ -292,7 +287,6 @@ export default function App() {
       cancelled = true;
       if (maxTimer) window.clearTimeout(maxTimer);
       if (savedTimer) window.clearTimeout(savedTimer);
-      if (transcriptTimer) window.clearTimeout(transcriptTimer);
       if (spinnerInterval) window.clearInterval(spinnerInterval);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -438,13 +432,9 @@ export default function App() {
   const reason = stageReason();
   const keyConfigured = geminiConfigured();
   const currentTone: Tone | null =
-    state.kind === 'showing' ? state.tone :
-    state.kind === 'transcript' ? state.tone :
-    null;
+    state.kind === 'showing' ? state.tone : null;
   const currentMode: Mode =
-    state.kind === 'showing' ? state.mode :
-    state.kind === 'transcript' ? state.mode :
-    mode;
+    state.kind === 'showing' ? state.mode : mode;
   const activeKid = getActive(memory);
   const history = historyFor(memory, activeKid?.id ?? null);
   const insights = computeInsights(history);
@@ -675,8 +665,7 @@ function renderForState(state: State): string {
   switch (state.kind) {
     case 'idle': return renderIdle();
     case 'listening': return renderListening();
-    case 'thinking': return renderThinking(state.tick);
-    case 'transcript': return renderTranscript(state.q);
+    case 'thinking': return renderThinking(state.tick, state.partialSay);
     case 'showing': return renderCard(state.q, state.card, state.tone, state.mode);
     case 'saved': return renderSaved(state.q);
   }
