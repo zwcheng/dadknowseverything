@@ -43,11 +43,14 @@ import {
 } from './memory/history';
 import { computeInsights } from './memory/insights';
 import { buildMemoryContext } from './memory/context';
+import { GestureDetector } from './imu';
+import { TOPIC_IMAGE, IMAGE_CONTAINER_ID, IMAGE_CONTAINER_NAME, imageContainer, IMAGE_W, IMAGE_H, imagesEnabled } from './assets/topicImages';
 
 const LISTEN_MAX_MS = 8000;
 const SAVED_MS = 1400;
 const TRANSCRIPT_MS = 700;
 const SPINNER_TICK_MS = 100;
+const IMU_REPORT_PACE = 100;   // ms = ~10 Hz
 const PCM_SAMPLE_RATE = 16000;
 
 export default function App() {
@@ -64,7 +67,15 @@ export default function App() {
   const toneRef = useRef<Tone>('simple');
   const modeRef = useRef<Mode>('answer');
   const memoryRef = useRef<MemoryStore>(emptyStore()); // always up-to-date for async callers
+  const stateRef = useRef<State>(initialState);
+  const gestureDetector = useRef(new GestureDetector());
+  const lastImageTopicRef = useRef<string>('');
   const [mode, setModeState] = useState<Mode>('answer');
+  const [deviceStatus, setDeviceStatus] = useState<{ battery?: number; wearing?: boolean } | null>(null);
+  const [parentName, setParentName] = useState<string>('');
+
+  // Keep state mirrored for async callbacks (device status listener).
+  useEffect(() => { stateRef.current = state; }, [state]);
 
   // Keep memoryRef mirrored so async Gemini calls see the latest store.
   useEffect(() => { memoryRef.current = memory; }, [memory]);
@@ -73,6 +84,7 @@ export default function App() {
   // seed or load the memory store (active kid + history).
   useEffect(() => {
     let unsub: (() => void) | undefined;
+    let statusUnsub: (() => void) | undefined;
     let cancelled = false;
 
     (async () => {
@@ -81,14 +93,24 @@ export default function App() {
       setBridge(b);
       setIsMock(mock);
 
+      const useImages = imagesEnabled();
       const card = textContainer({
         id: CARD_CONTAINER_ID,
         name: CARD_CONTAINER_NAME,
         content: renderIdle(),
         capture: true,
+        // When images are on, shift the text container right so the icon
+        // has space in the top-left corner of the 576×288 canvas.
+        x: useImages ? (IMAGE_W + 12) : 0,
+        width: useImages ? (576 - IMAGE_W - 12) : 576,
       });
       try {
-        await b.createStartUpPageContainer({ containerTotalNum: 1, textObject: [card] });
+        const startup: { containerTotalNum: number; textObject: unknown[]; imageObject?: unknown[] } = {
+          containerTotalNum: useImages ? 2 : 1,
+          textObject: [card],
+        };
+        if (useImages) startup.imageObject = [imageContainer()];
+        await b.createStartUpPageContainer(startup);
       } catch (err) {
         console.warn('[wondercue] createStartUpPageContainer failed', err);
       }
@@ -97,9 +119,40 @@ export default function App() {
       if (cancelled) return;
       setMemory(store);
 
+      // Best-effort user info seed — show "Hi, <name>" in the header if the
+      // host app supplies it. Not required for the flow to work.
+      b.getUserInfo?.().then((u) => { if (!cancelled && u?.name) setParentName(u.name); }).catch(() => {});
+
+      statusUnsub = b.onDeviceStatusChanged?.((status) => {
+        setDeviceStatus({ battery: status.batteryLevel, wearing: status.isWearing });
+        // Quiet-Tech posture: if the parent takes the glasses off mid-listen,
+        // stop the mic and return to idle. Don't fight for attention.
+        if (status.isWearing === false) {
+          const k = stateRef.current.kind;
+          if (k === 'listening' || k === 'thinking') {
+            b.audioControl?.(false).catch(() => {});
+            dispatch({ type: 'reset' });
+          }
+        }
+      });
+
       unsub = b.onEvenHubEvent((ev: AnyEvent) => {
         if (ev.audioEvent?.audioPcm != null) {
           audioBuffer.current.push(toUint8Array(ev.audioEvent.audioPcm));
+          return;
+        }
+        // IMU samples for nod/shake gesture detection (active only while
+        // SHOWING; see the effect below that toggles imuControl).
+        if (ev.sysEvent?.imuData) {
+          const d = ev.sysEvent.imuData;
+          const g = gestureDetector.current.push({ t: Date.now(), x: d.x, y: d.y, z: d.z });
+          if (g === 'nod') {
+            setEventLog((log) => [`gesture:nod @${new Date().toLocaleTimeString()}`, ...log].slice(0, 8));
+            dispatch({ type: 'double' });
+          } else if (g === 'shake') {
+            setEventLog((log) => [`gesture:shake @${new Date().toLocaleTimeString()}`, ...log].slice(0, 8));
+            dispatch({ type: 'scroll-top' });
+          }
           return;
         }
         const t = getEventType(ev);
@@ -114,13 +167,45 @@ export default function App() {
           dispatch({ type: 'reset' });
         }
       });
+
     })();
 
     return () => {
       cancelled = true;
       unsub?.();
+      statusUnsub?.();
     };
   }, []);
+
+  // Activate IMU only while a card is showing — battery hygiene and avoids
+  // false triggers during speech. Gesture detector is also reset here so
+  // stale motion from entering the state doesn't fire immediately.
+  useEffect(() => {
+    if (!bridge) return;
+    if (state.kind === 'showing') {
+      gestureDetector.current.reset();
+      bridge.imuControl?.(true, IMU_REPORT_PACE).catch(() => {});
+      return () => { bridge.imuControl?.(false).catch(() => {}); };
+    }
+  }, [state.kind, bridge]);
+
+  // When the topic on the showing card changes, push the matching pixel-art
+  // icon into the image container. Guarded by the images-enabled flag.
+  useEffect(() => {
+    if (!bridge) return;
+    if (!imagesEnabled()) return;
+    if (state.kind !== 'showing' && state.kind !== 'transcript') return;
+    const topic = state.kind === 'showing' ? state.q.topic : state.q.topic;
+    if (lastImageTopicRef.current === topic) return;
+    lastImageTopicRef.current = topic;
+    const data = TOPIC_IMAGE[topic];
+    if (!data) return;
+    bridge.updateImageRawData?.({
+      containerID: IMAGE_CONTAINER_ID,
+      containerName: IMAGE_CONTAINER_NAME,
+      data,
+    }).catch((err) => console.warn('[wondercue] updateImageRawData failed', err));
+  }, [state, bridge]);
 
   // State-entry side effects.
   useEffect(() => {
@@ -221,6 +306,45 @@ export default function App() {
     setEventLog((log) => [`dev:${t} @${new Date().toLocaleTimeString()}`, ...log].slice(0, 8));
   };
 
+  // Synthesize a head gesture by feeding the gesture detector directly
+  // (bypasses the bridge entirely so the simulation works whether the real
+  // SDK or the mock is loaded). Only useful during SHOWING because imuControl
+  // is off elsewhere.
+  // Synthesize a head gesture locally. Builds 6 samples spanning 300ms
+  // with one dominant axis, feeds them into the same detector the real
+  // IMU stream uses. Works whether the mock or real SDK is loaded.
+  const devGesture = (kind: 'nod' | 'shake') => {
+    const axisBig = kind === 'nod' ? 'y' : 'x';
+    const peaks = [0, 0.6, -0.55, 0.4, -0.3, 0];
+    const t0 = Date.now();
+    let fired: 'nod' | 'shake' | null = null;
+    for (let i = 0; i < peaks.length; i++) {
+      const sample = { t: t0 + i * 60, x: 0, y: 0, z: 0 };
+      (sample as any)[axisBig] = peaks[i];
+      const g = gestureDetector.current.push(sample);
+      if (g) { fired = g; break; }
+    }
+    if (fired === 'nod') {
+      setEventLog((l) => [`gesture:nod(dev) @${new Date().toLocaleTimeString()}`, ...l].slice(0, 8));
+      dispatch({ type: 'double' });
+    } else if (fired === 'shake') {
+      setEventLog((l) => [`gesture:shake(dev) @${new Date().toLocaleTimeString()}`, ...l].slice(0, 8));
+      dispatch({ type: 'scroll-top' });
+    }
+  };
+
+  // Simulate the glasses being removed (drives the same side-effect the real
+  // onDeviceStatusChanged would fire with isWearing=false).
+  const devUnworn = () => {
+    const k = stateRef.current.kind;
+    setDeviceStatus({ battery: deviceStatus?.battery, wearing: false });
+    if (k === 'listening' || k === 'thinking') {
+      bridge?.audioControl?.(false).catch(() => {});
+      dispatch({ type: 'reset' });
+    }
+    setEventLog((l) => [`dev:unworn @${new Date().toLocaleTimeString()}`, ...l].slice(0, 8));
+  };
+
   const autoDrive = () => {
     const seq: Array<[number, () => void]> = [
       [0, () => dispatch({ type: 'double' })],
@@ -241,6 +365,8 @@ export default function App() {
       else if (e.key === ' ' || e.key === 'Enter') devFire(EventType.CLICK);
       else if (e.key === 't' || e.key === 'T') devFire(EventType.SCROLL_TOP);
       else if (e.key === 'b' || e.key === 'B') devFire(EventType.SCROLL_BOTTOM);
+      else if (e.key === 'n' || e.key === 'N') devGesture('nod');
+      else if (e.key === 's' || e.key === 'S') devGesture('shake');
       else if (e.key === 'r' || e.key === 'R') autoDrive();
     };
     window.addEventListener('keydown', handler);
@@ -321,9 +447,18 @@ export default function App() {
     <div className="wrap">
       <header>
         <h1>DadKnowsEVERYTHING</h1>
-        <span className={`badge ${isMock ? 'mock' : 'live'}`}>
-          {isMock ? 'mock bridge' : 'SDK loaded'}
-        </span>
+        <div className="hdr-right">
+          {parentName && <span className="hdr-name">hi, {parentName}</span>}
+          {deviceStatus?.battery != null && (
+            <span className="hdr-batt" title="G2 battery">{deviceStatus.battery}%</span>
+          )}
+          {deviceStatus?.wearing === false && (
+            <span className="hdr-warn" title="Glasses not worn">unworn</span>
+          )}
+          <span className={`badge ${isMock ? 'mock' : 'live'}`}>
+            {isMock ? 'mock bridge' : 'SDK loaded'}
+          </span>
+        </div>
       </header>
 
       <ProfileCard
@@ -386,6 +521,9 @@ export default function App() {
             <button onClick={() => devFire(EventType.CLICK)}>click (Space)</button>
             <button onClick={() => devFire(EventType.SCROLL_TOP)}>swipe-up (T)</button>
             <button onClick={() => devFire(EventType.SCROLL_BOTTOM)}>swipe-down (B)</button>
+            <button onClick={() => devGesture('nod')} title="Simulate a head nod (only fires when showing)">nod (N)</button>
+            <button onClick={() => devGesture('shake')} title="Simulate a head shake (only fires when showing)">shake (S)</button>
+            <button onClick={devUnworn} title="Simulate glasses removed">unworn</button>
             <button onClick={autoDrive} title="One-shot rehearsal">auto-drive (R)</button>
           </div>
         )}

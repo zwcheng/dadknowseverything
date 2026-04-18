@@ -3,7 +3,7 @@
 A real-time curiosity copilot for parent-child moments, running on [Even
 Realities G2](https://www.evenrealities.com/) smart glasses.
 
-Built for Even Realities Builders' Day.
+Built for Even Realities Build Day @ Thinkspace Seattle.
 
 ## What it does
 
@@ -15,9 +15,17 @@ short cards appear on the G2 display:
 - **ASK** — one open follow-up to keep the child thinking
 - **TRY** — one tiny real-world activity for right now
 
-Single-press cycles the cards. Double-press saves the moment to the Wonder
-Trail. The goal isn't to replace the parent — it's to help them respond
-better without pulling out a phone.
+Single-press cycles the cards. **Double-press** (or a real head nod, via IMU)
+saves the moment to the Wonder Trail. **Swipe-up** cycles tone
+(simple / playful / science). **Swipe-down** flips to **Bounce mode**, a
+playful posture that turns the kid's question back on them — grounded,
+with a safety override for medical / danger / distress topics.
+
+Take the glasses off mid-listen and the mic auto-stops. Quiet Tech posture
+baked in.
+
+The goal isn't to replace the parent — it's to help them respond better
+without pulling out a phone.
 
 ## How it works
 
@@ -88,30 +96,55 @@ npm run build && npm run pack   # produces dadknowseverything.ehpk
 
 ## Interaction model
 
-| Gesture        | State     | Effect                         |
-| -------------- | --------- | ------------------------------ |
-| Double-press   | idle      | Start listening                |
-| Double-press   | listening | Stop listening and think       |
-| Single-press   | listening | Stop listening and think       |
-| Single-press   | showing   | Cycle SAY → ASK → TRY          |
-| Double-press   | showing   | Save to Wonder Trail, go idle  |
-| 8 s timeout    | listening | Auto-stop (max utterance)      |
+| Gesture                 | State     | Effect                                        |
+| ----------------------- | --------- | --------------------------------------------- |
+| Double-press            | idle      | Start listening                               |
+| Double-press / click    | listening | Stop listening and think                      |
+| 8 s timeout             | listening | Auto-stop (max utterance)                     |
+| **Glasses off**         | listening | Auto-stop mic, return to idle (Quiet Tech)    |
+| Single-press            | showing   | Cycle card SAY → ASK → TRY                    |
+| Double-press **or nod** | showing   | Save to Wonder Trail                          |
+| Swipe-up **or shake**   | showing   | Re-tone (simple → playful → science)          |
+| Swipe-down              | showing   | Flip Answer ↔ Bounce mode                     |
+
+**Bounce mode** swaps the card shape: `BOUNCE` (grounded counter-question)
+→ `TWIST` (absurd riff) → `TRUTH` (the real answer). Prompt-level safety
+override forces Answer for medical / danger / emotional-distress topics.
+
+Dev panel (preview in a browser) exposes all of the above as buttons plus
+keyboard shortcuts: `D` double, `Space` click, `T` swipe-up, `B` swipe-down,
+`N` nod, `S` shake, `R` auto-drive rehearsal.
 
 ## Project layout
 
 ```
 src/
-├── App.tsx        bootstrap, event wiring, dev panel
-├── bridge.ts      SDK wrapper + mock fallback (Chrome dev)
-├── state.ts       reducer + state machine
-├── display.ts     card rendering + textContainerUpgrade
-├── cards.ts       canned questions for stage mode
-├── gemini.ts      audio → Gemini Flash → structured JSON
-├── pcm.ts         audioEvent → WAV utilities
-├── stageMode.ts   localStorage toggle
-└── trail.ts       Wonder Trail persistence
+├── App.tsx              bootstrap, event wiring, dev panel
+├── bridge.ts            SDK wrapper + mock fallback (Chrome dev)
+├── state.ts             reducer + FSM (idle/listening/thinking/
+│                        transcript/showing/saved)
+├── display.ts           card rendering + textContainerUpgrade
+├── cards.ts             canned questions for stage mode
+├── gemini.ts            audio → Gemini Flash → structured JSON (streaming)
+├── pcm.ts               audioEvent → WAV utilities
+├── stageMode.ts         localStorage toggle
+├── tones.ts             simple / playful / science tone palette
+├── modes.ts             answer / bounce mode + prompt instructions
+├── imu.ts               nod/shake gesture detector (peak-to-peak on axis)
+├── assets/
+│   └── topicImages.ts   pixel-art topic icons for the G2 image container
+│                        (gated behind dk:images localStorage flag)
+└── memory/
+    ├── profile.ts       KidProfile, MemoryStore, CRUD
+    ├── history.ts       WonderMoment append + read
+    ├── insights.ts      derived topic freq / preferred tone / concepts
+    └── context.ts       prompt block + child-text sanitization
 
-app.json           Even Hub manifest (permissions, package_id, etc.)
+app.json                 Even Hub manifest (permissions, package_id)
+docs/BUILD.md            technical architecture + build history
+docs/BUSINESS.md         category thesis + device-co/developer value
+docs/REHEARSAL.md        5-min pitch script + fallbacks
+docs/slides.html         9-slide deck (arrow-keys to navigate)
 ```
 
 ## Character budgets

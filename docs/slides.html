@@ -29,10 +29,7 @@
     line-height: 1.5;
     overflow: hidden;
   }
-  .deck {
-    position: fixed;
-    inset: 0;
-  }
+  .deck { position: fixed; inset: 0; }
   .slide {
     position: absolute;
     inset: 0;
@@ -78,7 +75,7 @@
 
   .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; align-items: center; }
   .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
-  .grid-6 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
 
   .card {
     background: var(--panel);
@@ -96,22 +93,21 @@
     color: var(--green);
     text-transform: uppercase;
   }
-  .card .body { font-size: 19px; color: var(--ink); }
+  .card .body { font-size: 17px; color: var(--ink); line-height: 1.45; }
 
   .g2 {
     background: #000;
     border: 1px solid #1c2b1f;
     border-radius: 8px;
-    padding: 10px 14px;
+    padding: 16px 20px;
     font-family: 'JetBrains Mono', ui-monospace, monospace;
     color: var(--green);
     box-shadow: inset 0 0 16px rgba(121,255,140,0.15), 0 0 18px rgba(121,255,140,0.08);
     white-space: pre-wrap;
     line-height: 1.35;
+    font-size: clamp(14px, 1.5vw, 18px);
+    min-height: 140px;
   }
-  .g2.sm { font-size: clamp(11px, 1.1vw, 14px); min-height: 88px; }
-  .g2.md { font-size: clamp(14px, 1.5vw, 18px); min-height: 140px; padding: 16px 20px; }
-  .g2.lg { font-size: clamp(16px, 2vw, 22px); min-height: 240px; padding: 24px 28px; }
 
   .g2-tile {
     background: var(--panel);
@@ -159,10 +155,18 @@
   .chip.muted  { color: var(--muted); border-color: var(--line); background: transparent; }
   .chips { display: flex; gap: 10px; flex-wrap: wrap; }
 
-  .arch {
-    width: 100%;
-    max-width: 1100px;
+  .arch { width: 100%; max-width: 1100px; }
+
+  /* prize-track banner on title slide */
+  .prize-row {
+    display: flex; gap: 12px;
+    margin-top: 28px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 0.5px;
   }
+  .prize-row span { padding: 4px 10px; border: 1px solid var(--line); border-radius: 4px; }
 
   /* bottom counter + nav hint */
   nav.hud {
@@ -189,12 +193,8 @@
     color: var(--ink);
   }
 
-  /* eye-candy title slide */
-  .title-slide {
-    align-items: flex-start;
-    justify-content: center;
-    gap: 28px;
-  }
+  /* title slide */
+  .title-slide { align-items: flex-start; justify-content: center; gap: 28px; }
   .title-slide .kicker {
     color: var(--green);
     font-family: 'JetBrains Mono', monospace;
@@ -213,354 +213,153 @@
 <body>
 <div class="deck" id="deck">
 
-  <!-- ─────── 1 — Title ─────── -->
+  <!-- ─────── 1 — Title + Quiet Tech opener ─────── -->
   <section class="slide active title-slide" data-title="Title">
-    <div class="kicker">Builders' Day · Even Realities</div>
+    <div class="kicker">Build Day · Thinkspace Seattle · Even Realities</div>
     <h1 class="hero">DadKnowsEVERYTHING.</h1>
-    <p class="lead" style="max-width: 820px;">
-      A real-time <strong class="green">curiosity copilot</strong> for
-      parent-child moments, running on Even G2.
+    <p class="lead" style="max-width: 900px;">
+      Even built glasses that <strong class="green">refused the AR playbook</strong>.
+      No camera. No speaker. One tiny display per lens. <em class="accent">Quiet Tech.</em>
     </p>
-    <div class="metadata">
-      <span>zwcheng</span>
-      <span>·</span>
-      <span>github.com/zwcheng/dadknowseverything</span>
-    </div>
-    <!-- decorative G2 glyph -->
-    <svg width="220" height="70" viewBox="0 0 220 70" style="margin-top: 40px; opacity: 0.7;">
+    <p class="lead muted" style="max-width: 900px;">
+      DadKnowsEVERYTHING is a product that wouldn&#8217;t make sense on any other device —
+      a real-time curiosity copilot for parent-child moments.
+    </p>
+    <svg width="200" height="64" viewBox="0 0 220 70" style="margin-top: 18px; opacity: 0.7;">
       <ellipse cx="55" cy="35" rx="48" ry="26" fill="none" stroke="#79ff8c" stroke-width="2"/>
       <ellipse cx="165" cy="35" rx="48" ry="26" fill="none" stroke="#79ff8c" stroke-width="2"/>
       <rect x="100" y="32" width="20" height="6" fill="#79ff8c" opacity="0.5"/>
     </svg>
+    <div class="prize-row">
+      <span>everyday use case</span>
+      <span>brand fit</span>
+      <span>people&#8217;s choice</span>
+    </div>
   </section>
 
-  <!-- ─────── 2 — The Moment ─────── -->
+  <!-- ─────── 2 — Moment ─────── -->
   <section class="slide" data-title="The moment">
     <h3>The moment</h3>
     <h1>Kids ask a hundred <em class="accent">whys</em> a day.</h1>
-    <p class="lead muted">
+    <p class="lead muted" style="max-width: 900px;">
       In cars. On walks. At the grocery store. At bedtime.
     </p>
-    <p class="lead" style="margin-top: 24px;">
-      Parents want to stay <strong class="green">present</strong> — not
-      pull out a phone every time.
+    <p class="lead" style="max-width: 900px; margin-top: 18px;">
+      Parents want to stay <strong class="green">present</strong> — not pull out a phone every time.
+      The other AR answer is a camera pointed at your kid, which no parent asked for.
     </p>
-    <div class="chips" style="margin-top: 30px;">
-      <span class="chip">🚗 car ride</span>
-      <span class="chip">🍂 nature walk</span>
-      <span class="chip">🛒 grocery store</span>
-      <span class="chip">🦆 zoo / museum</span>
-      <span class="chip">🛏 bedtime</span>
+    <div class="chips" style="margin-top: 28px;">
+      <span class="chip">car ride</span>
+      <span class="chip">walk · park</span>
+      <span class="chip">grocery store</span>
+      <span class="chip">zoo · museum</span>
+      <span class="chip">bedtime</span>
     </div>
   </section>
 
-  <!-- ─────── 3 — The insight ─────── -->
+  <!-- ─────── 3 — Insight ─────── -->
   <section class="slide" data-title="The insight">
     <h3>Why this matters</h3>
     <div class="quote">
-      "Back-and-forth <em class="accent">serve-and-return</em> conversation
-      shapes language, reasoning, and engagement in early childhood."
+      &#8220;Back-and-forth <em class="accent">serve-and-return</em> conversation
+      shapes language, reasoning, and engagement in early childhood.&#8221;
       <div class="quote-src">Harvard Center on the Developing Child</div>
     </div>
-    <p class="lead" style="margin-top: 22px; max-width: 840px;">
-      Small prompts meaningfully improve family conversation quality.
-      The goal isn't to <em class="accent">answer</em> — it's to help the adult
-      <strong class="green">extend</strong> the moment.
+    <p class="lead" style="margin-top: 22px; max-width: 860px;">
+      The goal isn&#8217;t to <em class="accent">answer</em>. It&#8217;s to help the adult
+      <strong class="green">extend the moment</strong>. Small prompts meaningfully change
+      how a family talks.
     </p>
   </section>
 
-  <!-- ─────── 4 — Say / Ask / Try ─────── -->
-  <section class="slide" data-title="Say / Ask / Try">
-    <h3>The product</h3>
-    <h1>Say · Ask · Try.</h1>
-    <p class="lead muted">
-      One answer. One open question. One tiny experiment.
-    </p>
-    <div class="grid-3" style="margin-top: 20px;">
+  <!-- ─────── 4 — Live demo: Answer mode ─────── -->
+  <section class="slide" data-title="Live demo · Answer">
+    <h3>Live demo — Answer mode</h3>
+    <h1>Double-press. Speak. Glanceable answer.</h1>
+
+    <div class="grid-2" style="margin-top: 18px;">
       <div class="card">
-        <span class="label">o SAY (1/3)</span>
+        <span class="label">say (1/3) · ~80–1200ms streaming</span>
         <span class="body">The moon is always up there; sunlight just hides it.</span>
       </div>
       <div class="card">
-        <span class="label">o ASK (2/3)</span>
+        <span class="label">ask (2/3)</span>
         <span class="body">Where does the moon go when we lose sight of it?</span>
       </div>
+    </div>
+
+    <div class="grid-2" style="margin-top: 12px;">
       <div class="card">
-        <span class="label">o TRY (3/3)</span>
+        <span class="label">try (3/3)</span>
         <span class="body">Look for the moon three times today.</span>
       </div>
+      <div class="card">
+        <span class="label">nod to save</span>
+        <span class="body">
+          IMU detects a head nod (y-axis peak-to-peak &gt; threshold) and saves the moment to the Wonder Trail — no hands, no phone.
+        </span>
+      </div>
     </div>
-    <p class="muted" style="margin-top: 16px; font-size: 15px;">
-      Example response to "why is the moon out in the daytime?"
+
+    <p class="muted" style="margin-top: 14px; font-size: 14px;">
+      Behind the scenes: Gemini 2.5 Flash, streaming JSON via SSE, ordered fields so SAY renders first. Memory-aware: Mia&#8217;s name, age, interests, prior questions all feed the prompt.
     </p>
   </section>
 
-  <!-- ─────── 5 — Demo flow (G2 state mosaic) ─────── -->
-  <section class="slide" data-title="Demo flow">
-    <h3>The flow, as the parent sees it</h3>
-    <div class="grid-6">
-      <div class="g2-tile">
-        <span class="tile-label">1 · idle</span>
-        <pre class="g2 sm">DadKnowsEVERYTHING
-double-press to listen</pre>
-      </div>
-      <div class="g2-tile">
-        <span class="tile-label">2 · listening</span>
-        <pre class="g2 sm">* Listening...
-press once to stop</pre>
-      </div>
-      <div class="g2-tile">
-        <span class="tile-label">3 · thinking</span>
-        <pre class="g2 sm">/ thinking...</pre>
-      </div>
-      <div class="g2-tile">
-        <span class="tile-label">4 · transcript echo</span>
-        <pre class="g2 sm">Heard you:
-"why is the moon out in the daytime?"</pre>
-      </div>
-      <div class="g2-tile">
-        <span class="tile-label">5 · showing SAY</span>
-        <pre class="g2 sm">o SAY (1/3)
-The moon is always up there;
-sunlight just hides it.</pre>
-      </div>
-      <div class="g2-tile">
-        <span class="tile-label">6 · saved</span>
-        <pre class="g2 sm">Saved.
-"why is the moon out in the daytime?"</pre>
-      </div>
-    </div>
-    <p class="muted" style="margin-top: 12px; font-size: 15px;">
-      Each screen is the actual 576×288 G2 canvas, flicker-free updates via
-      <code style="color: var(--accent);">textContainerUpgrade</code>.
-    </p>
-  </section>
+  <!-- ─────── 5 — Live demo: Bounce mode ─────── -->
+  <section class="slide" data-title="Live demo · Bounce">
+    <h3>Live demo — Bounce mode</h3>
+    <h1>When the kid isn&#8217;t really asking.</h1>
 
-  <!-- ─────── Bounce mode ─────── -->
-  <section class="slide" data-title="Bounce mode">
-    <h3>When the kid isn&#8217;t really asking</h3>
-    <h1>Two modes. One wiser parent.</h1>
-    <p class="lead muted" style="max-width: 920px;">
-      <strong class="green">Answer</strong> for the what. <strong class="green">Bounce</strong> for the play.
-      Swipe-down on the temple flips between them. Grounded in the kid&#8217;s question either way.
-    </p>
-
-    <div class="grid-2" style="margin-top: 20px;">
+    <div class="grid-2" style="margin-top: 18px;">
       <div class="g2-tile">
         <span class="tile-label">answer mode</span>
-        <pre class="g2 md">o~ SAY (1/3)
+        <pre class="g2">o~ SAY (1/3)
 The moon is always up there;
 sunlight just hides it.</pre>
       </div>
       <div class="g2-tile">
         <span class="tile-label">bounce mode (same question)</span>
-        <pre class="g2 md">?o BOUNCE (1/3)
+        <pre class="g2">?o BOUNCE (1/3)
 Where do you think the moon
 goes during the day?</pre>
       </div>
     </div>
 
-    <div class="grid-3" style="margin-top: 18px;">
-      <div class="card">
-        <span class="label">bounce</span>
-        <span class="body">A grounded counter-question. Always reuses a noun or premise from what the kid asked. Warm tease, never dismissive.</span>
-      </div>
-      <div class="card">
-        <span class="label">twist</span>
-        <span class="body">A more absurd riff on the first bounce. The second laugh.</span>
-      </div>
-      <div class="card">
-        <span class="label">truth</span>
-        <span class="body">The real answer, one swipe away, for when the kid actually wants to know.</span>
-      </div>
-    </div>
+    <p class="lead" style="margin-top: 22px; max-width: 900px;">
+      Swipe-down flips the posture. The counter-question reuses the child&#8217;s own noun or premise — grounded, warm tease, never dismissive. <strong class="green">Safety override</strong> in the prompt forces Answer mode for medical, danger, or emotional-distress topics.
+    </p>
 
-    <p class="muted" style="margin-top: 14px; font-size: 14px;">
-      Safety override in the Gemini prompt: medical, injury, or emotional-distress topics force Answer mode regardless of setting.
+    <p class="muted" style="font-size: 14px;">
+      The laugh lands because the kid sees the parent playing along — not reaching for a phone.
     </p>
   </section>
 
-  <!-- ─────── Why Even G2 ─────── -->
-  <section class="slide" data-title="Why Even G2">
-    <h3>Why Even G2</h3>
-    <h1>The constraints <em class="accent">are</em> the product.</h1>
-    <div class="grid-2" style="margin-top: 30px;">
-      <ul class="points">
-        <li><strong class="green">No camera</strong> → privacy is default</li>
-        <li><strong class="green">No speaker</strong> → quiet, line-of-sight only</li>
-        <li><strong class="green">576×288 canvas</strong> → one idea per card</li>
-        <li><strong class="green">Temple presses</strong> → two gestures, zero fumbling</li>
-        <li><strong class="green">4-mic array, 16 kHz PCM</strong> → matches Gemini's audio input one-to-one</li>
-      </ul>
-      <div>
-        <pre class="g2 md">DadKnowsEVERYTHING
-double-press to listen</pre>
-        <p class="muted" style="margin-top: 14px; font-size: 14px;">
-          A generic port of a phone app would fight this hardware.
-          A whisper-quiet nudge fits it perfectly.
-        </p>
-      </div>
-    </div>
-  </section>
-
-  <!-- ─────── 7 — Architecture ─────── -->
-  <section class="slide" data-title="Architecture">
-    <h3>Under the hood</h3>
-    <h1>One phone, one model, one WebSocket-ish stream.</h1>
-    <svg class="arch" viewBox="0 0 1100 320" style="margin-top: 18px;">
-      <defs>
-        <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
-          <path d="M0,0 L10,5 L0,10 z" fill="#79ff8c"/>
-        </marker>
-        <marker id="arrow-back" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
-          <path d="M0,0 L10,5 L0,10 z" fill="#68a0ff"/>
-        </marker>
-      </defs>
-      <!-- boxes -->
-      <g font-family="Inter, sans-serif" font-size="15" fill="#e8edf2" text-anchor="middle">
-        <g>
-          <rect x="20" y="120" width="150" height="80" rx="10" fill="#12161b" stroke="#1c232b"/>
-          <text x="95" y="155">child speaks</text>
-          <text x="95" y="178" fill="#7a8591" font-size="12">"why is the moon…"</text>
-        </g>
-        <g>
-          <rect x="210" y="120" width="170" height="80" rx="10" fill="#12161b" stroke="#1c232b"/>
-          <text x="295" y="150">Even G2</text>
-          <text x="295" y="172" fill="#79ff8c" font-size="12">4-mic · 576×288</text>
-          <text x="295" y="190" fill="#7a8591" font-size="11">BT 5.2</text>
-        </g>
-        <g>
-          <rect x="430" y="120" width="210" height="80" rx="10" fill="#12161b" stroke="#1c232b"/>
-          <text x="535" y="150">phone app</text>
-          <text x="535" y="172" fill="#68a0ff" font-size="12">React · SDK bridge</text>
-          <text x="535" y="190" fill="#7a8591" font-size="11">FSM · audio buffer</text>
-        </g>
-        <g>
-          <rect x="690" y="120" width="210" height="80" rx="10" fill="#12161b" stroke="#1c232b"/>
-          <text x="795" y="150">Gemini 2.5 Flash</text>
-          <text x="795" y="172" fill="#79ff8c" font-size="12">streaming JSON</text>
-          <text x="795" y="190" fill="#7a8591" font-size="11">inline WAV · schema</text>
-        </g>
-        <g>
-          <rect x="940" y="120" width="140" height="80" rx="10" fill="#12161b" stroke="#1c232b"/>
-          <text x="1010" y="155">Say · Ask · Try</text>
-          <text x="1010" y="178" fill="#7a8591" font-size="12">on G2 display</text>
-        </g>
-      </g>
-      <!-- arrows forward -->
-      <g stroke="#79ff8c" stroke-width="2" fill="none">
-        <line x1="170" y1="160" x2="205" y2="160" marker-end="url(#arrow)"/>
-        <line x1="380" y1="160" x2="425" y2="160" marker-end="url(#arrow)"/>
-        <line x1="640" y1="160" x2="685" y2="160" marker-end="url(#arrow)"/>
-      </g>
-      <!-- streaming back -->
-      <g stroke="#68a0ff" stroke-width="2" fill="none" stroke-dasharray="6 5">
-        <path d="M790,205 C 700,260 560,260 540,205" marker-end="url(#arrow-back)"/>
-      </g>
-      <text x="665" y="262" fill="#68a0ff" font-family="JetBrains Mono, monospace" font-size="11" text-anchor="middle">
-        partial SAY streams back
-      </text>
-      <!-- update arrow -->
-      <g stroke="#79ff8c" stroke-width="2" fill="none">
-        <path d="M540,120 C 540,70 1010,70 1010,120" marker-end="url(#arrow)"/>
-      </g>
-      <text x="770" y="62" fill="#79ff8c" font-family="JetBrains Mono, monospace" font-size="11" text-anchor="middle">
-        textContainerUpgrade — flicker-free
-      </text>
-    </svg>
-  </section>
-
-  <!-- ─────── 8 — Tech highlights ─────── -->
-  <section class="slide" data-title="Tech highlights">
-    <h3>The tech that makes it pop</h3>
-    <h1>Small details · big feel.</h1>
-    <div class="grid-2" style="margin-top: 24px;">
-      <div class="card">
-        <span class="label">streaming SAY</span>
-        <span class="body">
-          Gemini SSE · <code style="color:var(--accent)">propertyOrdering</code>
-          puts <code>questionText</code> and <code>say</code> first so the
-          card starts rendering at ~600 ms instead of ~2 s.
-        </span>
-      </div>
-      <div class="card">
-        <span class="label">transcript echo</span>
-        <span class="body">
-          700 ms "Heard you: …" before the SAY card. Proves the mic worked
-          and builds trust before the answer lands.
-        </span>
-      </div>
-      <div class="card">
-        <span class="label">adaptive tones</span>
-        <span class="body">
-          Swipe-up on any card re-queries in a new voice:
-          <span class="chip muted" style="margin:0 4px;">simple</span>
-          <span class="chip muted" style="margin:0 4px;">playful</span>
-          <span class="chip muted" style="margin:0 4px;">science</span>
-          Text-only retone — no re-upload.
-        </span>
-      </div>
-      <div class="card">
-        <span class="label">stage mode</span>
-        <span class="body">
-          One-click offline fallback with pre-written Say/Ask/Try.
-          Zero network. Demo-day insurance against hostile WiFi.
-        </span>
-      </div>
-    </div>
-  </section>
-
-  <!-- ─────── 9 — Wonder Trail ─────── -->
-  <section class="slide" data-title="Wonder Trail">
-    <h3>What gets saved</h3>
-    <h1>The Wonder Trail.</h1>
-    <p class="lead" style="max-width: 900px;">
-      Every double-press on a shown card saves the moment — topic, time,
-      question. At day's end, parents see the curiosity map of their kids.
-    </p>
-    <div class="grid-2" style="margin-top: 26px;">
-      <div>
-        <pre class="g2 md">Saved.
-"why is the moon out in the daytime?"</pre>
-      </div>
-      <div class="card">
-        <span class="label">today's trail</span>
-        <div class="body" style="display: flex; flex-direction: column; gap: 8px; font-size: 16px;">
-          <div><span class="chip" style="margin-right:8px;">space</span> why is the moon out in the daytime?</div>
-          <div><span class="chip" style="margin-right:8px;">nature</span> why are some leaves still on the tree?</div>
-          <div><span class="chip" style="margin-right:8px;">everyday</span> why do bananas turn brown?</div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ─────── Memory ─────── -->
+  <!-- ─────── 6 — Memory ─────── -->
   <section class="slide" data-title="Memory">
-    <h3>From moments to a kid&#8217;s curiosity map</h3>
+    <h3>From moments to a curiosity map</h3>
     <h1>Memory turns this into software you keep.</h1>
     <p class="lead muted" style="max-width: 900px;">
-      Every moment feeds a local profile. The next question gets an answer
-      that knows Mia&#8217;s name, her reading level, and what she already asked.
+      Every saved moment feeds a local profile. Next question, the AI knows Mia&#8217;s name, reading level, and everything she&#8217;s already asked.
     </p>
 
     <div class="grid-2" style="margin-top: 22px;">
       <div class="card">
         <span class="label">kid profile · memory</span>
-        <div class="body" style="font-size: 15px; line-height: 1.5;">
+        <div class="body">
           <strong style="color: var(--ink);">Mia</strong> · age 7 · space, dinosaurs, her dog Pepper<br/>
           <span style="color: var(--muted);">
-            reading level: early elementary · 47 Wonder Moments ·
-            top topic: <em class="accent">space</em> · preferred tone: <em class="accent">playful</em>
+            early elementary · 47 Wonder Moments · top: <em class="accent">space</em> · prefers: <em class="accent">playful</em>
           </span>
         </div>
       </div>
       <div class="card">
         <span class="label">next time Mia asks about the moon</span>
-        <div class="body" style="font-size: 15px; line-height: 1.5;">
+        <div class="body">
           <span style="color: var(--muted);">without memory:</span><br/>
-          "The moon is always up there; sunlight just hides it."<br/><br/>
+          &#8220;The moon is always up there; sunlight just hides it.&#8221;<br/><br/>
           <span style="color: var(--muted);">with memory:</span><br/>
-          "Mia, like you asked last week \u2014 same reason the stars hide."
+          &#8220;Mia, like you asked last week &mdash; same reason the stars hide.&#8221;
         </div>
       </div>
     </div>
@@ -568,35 +367,59 @@ double-press to listen</pre>
     <div class="chips" style="margin-top: 22px;">
       <span class="chip">local-first</span>
       <span class="chip">parent-editable</span>
-      <span class="chip">end-to-end encrypted when synced</span>
+      <span class="chip">prompt-injection hardened</span>
       <span class="chip accent">never trained on · never ad-targeted</span>
     </div>
+  </section>
 
-    <p class="muted" style="margin-top: 14px; font-size: 14px; max-width: 860px;">
-      Paid tier unlocks cloud sync, multi-parent accounts, and a timeline dashboard: the kid&#8217;s curiosity map month-over-month.
+  <!-- ─────── 7 — Why Even G2 (constraints = product) ─────── -->
+  <section class="slide" data-title="Why Even G2">
+    <h3>Why Even G2 specifically</h3>
+    <h1>The constraints <em class="accent">are</em> the product spec.</h1>
+
+    <div class="grid-2" style="margin-top: 26px;">
+      <ul class="points">
+        <li><strong class="green">No camera</strong> → privacy is default; parents welcome it around kids</li>
+        <li><strong class="green">No speaker</strong> → quiet, line-of-sight; doesn&#8217;t hijack the moment</li>
+        <li><strong class="green">Tiny canvas</strong> → forces one idea per card; structure = discipline</li>
+        <li><strong class="green">4-mic 16 kHz PCM</strong> → feeds Gemini inline audio with zero resampling</li>
+        <li><strong class="green">Temple + IMU</strong> → two presses + a nod. No fumbling.</li>
+      </ul>
+      <div class="card">
+        <span class="label">Quiet Tech alignment</span>
+        <span class="body">
+          Glasses unworn mid-listen? Mic auto-stops. Reset to idle.
+          The product steps back when attention leaves. The hardware
+          stance IS the product posture.
+        </span>
+      </div>
+    </div>
+
+    <p class="muted" style="margin-top: 14px; font-size: 14px;">
+      A generic phone port would fight this hardware. A whisper-quiet nudge fits it perfectly.
     </p>
   </section>
 
-  <!-- ─────── Platform ─────── -->
+  <!-- ─────── 8 — Platform (what this unlocks) ─────── -->
   <section class="slide" data-title="Platform">
     <h3>The category only G2 can own</h3>
     <h1>Invisible copilots for in-person moments.</h1>
     <p class="lead muted" style="max-width: 900px;">
-      Same hardware + memory rails. Different conversations. Every lane
-      gets easier once the first one ships.
+      Same hardware. Same memory rails. Different conversations. Every lane
+      gets easier once the first ships.
     </p>
 
-    <div class="grid-3" style="margin-top: 24px;">
+    <div class="grid-3" style="margin-top: 22px;">
       <div class="card">
-        <span class="label">parent \u00b7 you are here</span>
-        <span class="body">Curiosity copilot for ages 5\u201310. Say / Ask / Try, Bounce mode, Wonder Trail.</span>
+        <span class="label">parent · today</span>
+        <span class="body">Curiosity copilot for ages 5–10. Answer / Bounce. Wonder Trail.</span>
       </div>
       <div class="card">
-        <span class="label">tutor / language partner</span>
+        <span class="label">tutor · language partner</span>
         <span class="body">Prompts for reading aloud, vocabulary coaching, bilingual practice at home.</span>
       </div>
       <div class="card">
-        <span class="label">clinical / care</span>
+        <span class="label">clinical · care</span>
         <span class="body">Medical rounds handoff, caregiver scripts for memory-impaired conversations.</span>
       </div>
       <div class="card">
@@ -604,36 +427,41 @@ double-press to listen</pre>
         <span class="body">Social-cue cards, anxiety-defusing prompts, script-based regulation.</span>
       </div>
       <div class="card">
-        <span class="label">meeting / field work</span>
+        <span class="label">field work · inspection</span>
         <span class="body">Silent cue cards for interviews, inspections, first-responder handoffs.</span>
       </div>
       <div class="card">
         <span class="label">education partners</span>
-        <span class="body">Museum exhibit paths, curriculum-aligned prompts, reading-log integrations.</span>
+        <span class="body">Museum exhibit paths, curriculum prompts, reading-log integrations.</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────── 9 — Close ─────── -->
+  <section class="slide" data-title="Close">
+    <h3 style="color: var(--green); letter-spacing: 2px;">Close</h3>
+    <h1 class="hero" style="max-width: 960px;">Not school on glasses.</h1>
+    <h1 class="hero" style="max-width: 960px; color: var(--green);">A real-time curiosity copilot for family life.</h1>
+
+    <div class="grid-3" style="margin-top: 28px;">
+      <div class="card">
+        <span class="label">everyday use case</span>
+        <span class="body">Car rides, walks, museums, bedtime. Daily-active.</span>
+      </div>
+      <div class="card">
+        <span class="label">brand fit</span>
+        <span class="body">Quiet Tech, camera-free, memory-local. Every constraint you chose — we chose too.</span>
+      </div>
+      <div class="card">
+        <span class="label">people&#8217;s choice</span>
+        <span class="body">Bounce mode. Laughter was the vote.</span>
       </div>
     </div>
 
-    <p class="muted" style="margin-top: 18px; font-size: 14px; max-width: 900px;">
-      Camera-free, speaker-free, glanceable. Every one of these categories
-      is hostile to phones and impossible on camera-AR glasses. G2 is the
-      form factor they&#8217;ve been waiting for.
-    </p>
-  </section>
-
-  <!-- ─────── Close ─────── -->
-  <section class="slide" data-title="Close">
-    <h3 style="color: var(--green); letter-spacing: 2px;">Close</h3>
-    <h1 class="hero" style="max-width: 960px;">
-      Not school on glasses.
-    </h1>
-    <h1 class="hero" style="max-width: 960px; color: var(--green);">
-      A real-time curiosity copilot for family life.
-    </h1>
     <p class="lead muted" style="margin-top: 30px; max-width: 820px;">
-      Built on Even G2 + Gemini 2.5 Flash. Works offline via stage mode.
-      Ships as a PWA or .ehpk.
+      Built on Even G2 + Gemini 2.5 Flash. Works offline via stage mode. Ships as a PWA or .ehpk.
     </p>
-    <div class="metadata" style="margin-top: 40px;">
+    <div class="chips" style="margin-top: 24px;">
       <span class="chip">github.com/zwcheng/dadknowseverything</span>
       <span class="chip accent">thanks — questions?</span>
     </div>
@@ -644,14 +472,13 @@ double-press to listen</pre>
 <nav class="hud">
   <span class="title" id="slide-title">Title</span>
   <span><kbd>←</kbd> <kbd>→</kbd> or <kbd>Space</kbd> to navigate · <kbd>F</kbd> fullscreen</span>
-  <span class="counter"><span id="slide-n">1</span> / <span id="slide-total">13</span></span>
+  <span class="counter"><span id="slide-n">1</span> / <span id="slide-total">9</span></span>
 </nav>
 
 <script>
   const slides = document.querySelectorAll('.slide');
   const total = slides.length;
   let idx = 0;
-
   const nEl = document.getElementById('slide-n');
   const titleEl = document.getElementById('slide-title');
   document.getElementById('slide-total').textContent = total;

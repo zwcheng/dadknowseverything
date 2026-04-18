@@ -22,17 +22,43 @@ export interface TextUpgradeArg {
   contentLength?: number;
 }
 
+export interface DeviceStatus {
+  batteryLevel?: number;
+  isWearing?: boolean;
+  isCharging?: boolean;
+  isInCase?: boolean;
+  connectType?: number;
+  [k: string]: unknown;
+}
+
+export interface UserInfo {
+  uid?: number;
+  name?: string;
+  avatar?: string;
+  country?: string;
+  [k: string]: unknown;
+}
+
+export interface ImageUpdateArg {
+  containerID: number;
+  containerName: string;
+  data: number[] | Uint8Array | string;
+}
+
 export interface EvenBridgeLike {
   createStartUpPageContainer: (arg: StartupContainers & { containerTotalNum?: number }) => Promise<number>;
   rebuildPageContainer: (arg: StartupContainers & { containerTotalNum?: number }) => Promise<boolean>;
   textContainerUpgrade: (arg: TextUpgradeArg) => Promise<boolean>;
+  updateImageRawData?: (arg: ImageUpdateArg) => Promise<string | boolean>;
   shutDownPageContainer?: (exitMode?: number) => Promise<boolean>;
   audioControl?: (isOpen: boolean) => Promise<boolean>;
+  imuControl?: (isOpen: boolean, reportFrq?: number) => Promise<boolean>;
   getDeviceInfo?: () => Promise<unknown>;
+  getUserInfo?: () => Promise<UserInfo>;
   setLocalStorage?: (key: string, value: string) => Promise<boolean>;
   getLocalStorage?: (key: string) => Promise<string>;
   onEvenHubEvent: (cb: (event: AnyEvent) => void) => Unsub;
-  onDeviceStatusChanged?: (cb: (status: unknown) => void) => Unsub;
+  onDeviceStatusChanged?: (cb: (status: DeviceStatus) => void) => Unsub;
 }
 
 export interface AnyEvent {
@@ -71,6 +97,10 @@ export async function loadBridge(timeoutMs = 1500): Promise<{ bridge: EvenBridge
 
   try {
     sdkCache = await import('@evenrealities/even_hub_sdk');
+    // Expose the SDK module globally so small helper files (topicImages,
+    // textContainer builder) can pull class constructors without carrying
+    // the import themselves.
+    (window as any).__evenSdkCache = sdkCache;
     const real = await Promise.race<EvenBridgeLike | null>([
       sdkCache.waitForEvenAppBridge() as Promise<EvenBridgeLike>,
       new Promise((resolve) => setTimeout(() => resolve(null), timeoutMs)),
@@ -91,8 +121,28 @@ export async function loadBridge(timeoutMs = 1500): Promise<{ bridge: EvenBridge
 
 function createMockBridge(): EvenBridgeLike {
   const listeners = new Set<(e: AnyEvent) => void>();
+  const statusListeners = new Set<(s: DeviceStatus) => void>();
   (window as any).__wcMockFire = (eventType: number) => {
     for (const cb of listeners) cb({ textEvent: { eventType, containerID: 1, containerName: 'card' } });
+  };
+  // Synthesize a short IMU burst mimicking a nod (large y swing) or
+  // shake (large x swing) so the detector can be exercised in plain
+  // Chrome without hardware.
+  (window as any).__wcMockImuBurst = (kind: 'nod' | 'shake' = 'nod') => {
+    const axisBig = kind === 'nod' ? 'y' : 'x';
+    const axisSmall = kind === 'nod' ? 'x' : 'y';
+    const peaks = [0, 0.6, -0.5, 0.4, -0.3, 0];
+    peaks.forEach((p, i) => {
+      setTimeout(() => {
+        const sample: any = { x: 0, y: 0, z: 0 };
+        sample[axisBig] = p;
+        sample[axisSmall] = p * 0.1;
+        for (const cb of listeners) cb({ sysEvent: { eventType: 8, imuData: sample } });
+      }, i * 60);
+    });
+  };
+  (window as any).__wcMockStatus = (patch: Partial<DeviceStatus>) => {
+    for (const cb of statusListeners) cb({ batteryLevel: 85, isWearing: true, isCharging: false, isInCase: false, ...patch });
   };
   return {
     async createStartUpPageContainer(arg) {
@@ -107,9 +157,20 @@ function createMockBridge(): EvenBridgeLike {
       console.info('[mock] textContainerUpgrade', arg);
       return true;
     },
+    async updateImageRawData(arg) {
+      console.info('[mock] updateImageRawData', { id: arg.containerID, len: Array.isArray(arg.data) ? arg.data.length : undefined });
+      return 'success';
+    },
     async audioControl(open) {
       console.info('[mock] audioControl', open);
       return true;
+    },
+    async imuControl(open, freq) {
+      console.info('[mock] imuControl', open, freq);
+      return true;
+    },
+    async getUserInfo() {
+      return { uid: 0, name: 'Parent', country: 'US' };
     },
     async setLocalStorage(k, v) {
       localStorage.setItem(`wc:${k}`, v);
@@ -121,6 +182,10 @@ function createMockBridge(): EvenBridgeLike {
     onEvenHubEvent(cb) {
       listeners.add(cb);
       return () => listeners.delete(cb);
+    },
+    onDeviceStatusChanged(cb) {
+      statusListeners.add(cb);
+      return () => statusListeners.delete(cb);
     },
   };
 }
