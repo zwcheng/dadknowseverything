@@ -1,8 +1,8 @@
 {
-  "package_id": "com.dadknowseverything.demo",
+  "package_id": "com.dadknowseverything.persona",
   "edition": "202601",
-  "name": "DadKnowsEVERYTHING",
-  "version": "0.1.0",
+  "name": "DadKnowsEVERYTHING: Persona",
+  "version": "0.2.0",
   "min_app_version": "2.0.0",
   "min_sdk_version": "0.0.9",
   "entrypoint": "index.html",
@@ -10,11 +10,11 @@
   "permissions": [
     {
       "name": "g2-microphone",
-      "desc": "Captures children's questions so DadKnowsEVERYTHING can generate Say, Ask, and Try prompts for the parent."
+      "desc": "Captures children's questions so DadKnowsEVERYTHING can generate Defensive, Offensive, and Escape options for the parent."
     },
     {
       "name": "network",
-      "desc": "Sends transcripts to DadKnowsEVERYTHING's language model to generate age-appropriate prompts."
+      "desc": "Sends transcripts to DadKnowsEVERYTHING's language model to generate response options."
     }
   ]
 }

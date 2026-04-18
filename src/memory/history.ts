@@ -1,11 +1,13 @@
 // Append / read WonderMoments for a given kid. Lives inside the same JSON
 // blob as profiles so one bridge.setLocalStorage round-trip covers all
 // memory writes.
+//
+// In persona-defense we auto-save every showing — which option dad actually
+// said is not recorded (and not load-bearing for future prompting, since
+// the kid's next question drives the next triad anyway).
 
 import type { EvenBridgeLike } from '../bridge';
 import type { Question } from '../cards';
-import type { Tone } from '../tones';
-import type { Mode } from '../modes';
 import {
   type MemoryStore,
   type WonderMoment,
@@ -16,25 +18,16 @@ import {
 
 export const HISTORY_LIMIT = 200;   // cap to keep the blob small
 
-export function momentFromQuestion(
-  kidId: string,
-  q: Question,
-  tone: Tone,
-  mode: Mode,
-  parentAction: WonderMoment['parentAction'] = 'saved',
-): WonderMoment {
+export function momentFromQuestion(kidId: string, q: Question): WonderMoment {
   return {
     id: genId(),
     kidId,
     at: Date.now(),
     question: q.text,
     topic: q.topic,
-    tone,
-    mode,
-    say: q.say,
-    ask: q.ask,
-    try_: q.try,
-    parentAction,
+    defensive: q.defensive,
+    offensive: q.offensive,
+    escape: q.escape,
   };
 }
 

@@ -1,47 +1,69 @@
-// Gemini Flash integration.
+// Gemini Flash integration for the persona-defense build.
 //
-// Two entry points:
-//   askGeminiAudio(wav, tone, onPartial) — streams SSE, emits {kind:'say'|'text'|'done'}
-//   askGeminiText(text, tone)            — single call, no streaming (used for retone)
+// One entry point: askGeminiAudio(wav, callbacks?, memoryBlock?) streams
+// SSE and returns a full Question (child's text + D/O/E triad). Partial
+// `defensive` tokens are surfaced via callbacks so the glasses can start
+// painting the first answer while the rest of the JSON finishes.
 //
-// Streaming uses the `:streamGenerateContent?alt=sse` endpoint with a JSON
-// response schema. Chunks arrive as SSE events whose text parts concatenate
-// into valid JSON. We regex-extract the partial `say` field from the growing
-// buffer so the SAY card can reveal incrementally on the glasses.
+// On stream failure (truncated JSON, empty response) we transparently
+// retry once on the non-streaming endpoint — same request, no streaming
+// complexity.
 
 import type { Question, Topic } from './cards';
 import { bytesToBase64 } from './pcm';
-import { TONE_INSTRUCTION, type Tone } from './tones';
-import { MODE_INSTRUCTION, type Mode } from './modes';
 
 const DEFAULT_MODEL = 'gemini-2.5-flash';
 
-const SYSTEM_INSTRUCTION_BASE = `You are DadKnowsEVERYTHING, a real-time curiosity copilot for a parent wearing Even G2 smart glasses. A child has just asked the parent a question.
+// Hard budget per row. Measured against G2's proportional LVGL font;
+// ~48 chars wraps reliably to a single row on most utterances.
+const ROW_BUDGET = 48;
 
-Respond with a strict JSON object matching the provided schema. The parent will see three cards on a TINY 576x288 green-on-black display. HARD character limits — cards are cut off above these budgets:
+const SYSTEM_INSTRUCTION_BASE = `You are DadKnowsEVERYTHING: Persona Defense. A child has just asked a parent a question aloud. The parent is wearing Even G2 smart glasses and will silently read ONE of the three options you produce and say it out loud. Produce ALL THREE every time.
 
-- questionText: the child's question as a clean sentence. If unclear, set to "(unclear)" and still give a light generic response.
+The product's purpose: make it seem like dad knows EVERYTHING. Dad has two postures to achieve this, plus one release valve:
+- DEFENSIVE: answer accurately and confidently.
+- OFFENSIVE: refuse to submit to the question; volley a related question back to the child so the onus of thought is on them.
+- ESCAPE: goofy derailment that detonates the line of questioning into laughter.
+
+Respond with a strict JSON object matching the provided schema.
+
+ABSOLUTE RULES (violating any of these breaks the product):
+1. NEVER invent or hypothesize facts in the "defensive" or "offensive" fields. Every factual claim must be established, mainstream science or widely-known human knowledge. If the only honest defensive answer would be speculation, rewrite "defensive" as a grounded counter-question in the offensive style — but still call it defensive. Do not hedge, do not speculate, do not caveat.
+2. NEVER say "I don't know", "I'm not sure", "nobody knows", "it's a mystery", "scientists don't fully understand", or any variant of admitting uncertainty. In the rare case there is literally no human knowledge available, fall back to rule 1 (counter-question in the defensive slot). There is essentially always a reason "why" — use it.
+3. NEVER attack or belittle the child. No mocking, no "stop asking", no condescension. Dry wit is fine; cruelty is not.
+4. ONLY the "escape" field may invent. It MUST invent something obviously absurd — so clearly impossible that no child would mistake it for a real fact. Plausible-sounding false claims are forbidden everywhere, including escape.
+5. Never use emoji, markdown, or stage directions.
+
+TONE RULES (strict):
+- "defensive": academic, highfalutin, faintly groan-worthy. Dry, slightly over-educated, a word the child might not know used correctly. Never aggressive, derogatory, or condescending. Think: tweed-jacket-and-tea energy.
+- "offensive": academic AND slyly sarcastic. Same tweed-jacket base as defensive, but with an eyebrow raised — gentle mock-bewilderment at the premise of the question, or a Socratic turn that flips an assumption the child didn't know they were making. The goal is to make the child PAUSE and think, not to hand them a softball. Never aggressive, never demeaning, never a cheap "what do YOU think?" — it should confound, not dismiss. Think: a professor who finds the question more interesting than the student expected.
+- "escape": giddy, eccentric, inspirational. Breakfast-cereal-commercial energy. The more ridiculous, confusing, or impossible, the better — the goal is to make everyone laugh and forget the original question.
+
+FIELD SPEC:
+- questionText: the child's question as a clean sentence. If unclear, set to "(unclear)" and still produce a full D/O/E triad.
 - topic: one of nature | space | body | animals | everyday.
-- say: ONE child-friendly sentence answering the question. MAX 60 characters. One idea only.
-- ask: ONE open follow-up question back to the child. MAX 50 characters. Must end with "?".
-- try: ONE tiny real-world action the family can do right now. MAX 55 characters. Start with an imperative verb.
+- defensive (<= ${ROW_BUDGET} chars): ONE sentence. Accurate, specific, academic in tone. No caveats, no uncertainty words.
+- offensive (<= ${ROW_BUDGET} chars): ONE counter-question ending in "?". Must reuse a noun or verb from the child's question so it feels grounded, not evasive. Should either (a) challenge a hidden assumption in their question, (b) demand a definition of a word they used casually, or (c) invert the question so they must answer it themselves with new framing. Lightly sarcastic and confounding — not a softball, not a helpful pedagogical prompt. No bare "what do you think?" or "why do YOU think so?" — those are forbidden.
+- escape (<= ${ROW_BUDGET} chars): ONE goofy invented line. Obviously absurd. Giddy tone.
 
-Before emitting, COUNT the characters of say/ask/try and rewrite shorter if any field exceeds its limit. Be warm, concrete, age 5–8. No stage directions, no markdown, no emojis.`;
+SAFETY OVERRIDE: if the question involves medical harm, dangerous objects, abuse, grief, or emotional distress, ALL THREE fields should be warm, honest, direct responses in the spirit of "defensive". Skip the academic tone and the goofy escape — safety and kindness beat style. In those cases "offensive" becomes a caring follow-up question and "escape" becomes a grounding activity, not a joke.
 
-// Order the fields so `questionText` and `say` arrive EARLY in the JSON stream.
-// That lets the UI show the transcript echo and start revealing SAY as fast
-// as possible without waiting for ASK and TRY to finish streaming.
+Before emitting, COUNT the characters of defensive/offensive/escape. If any exceeds ${ROW_BUDGET}, rewrite shorter.`;
+
+// Field order in the schema is load-bearing: questionText and defensive
+// arrive first in the stream so the UI can paint them while offensive
+// and escape are still tokenizing.
 const RESPONSE_SCHEMA = {
   type: 'object',
   properties: {
     questionText: { type: 'string' },
     topic: { type: 'string', enum: ['nature', 'space', 'body', 'animals', 'everyday'] },
-    say: { type: 'string' },
-    ask: { type: 'string' },
-    try_: { type: 'string' },
+    defensive: { type: 'string' },
+    offensive: { type: 'string' },
+    escape: { type: 'string' },
   },
-  required: ['questionText', 'topic', 'say', 'ask', 'try_'],
-  propertyOrdering: ['questionText', 'topic', 'say', 'ask', 'try_'],
+  required: ['questionText', 'topic', 'defensive', 'offensive', 'escape'],
+  propertyOrdering: ['questionText', 'topic', 'defensive', 'offensive', 'escape'],
 };
 
 export function geminiConfigured(): boolean {
@@ -56,48 +78,42 @@ function apiKey(): string {
 function model(): string {
   return (import.meta.env.VITE_GEMINI_MODEL as string | undefined) || DEFAULT_MODEL;
 }
-function systemWith(tone: Tone, mode: Mode, memoryBlock?: string): string {
+function systemWith(memoryBlock?: string): string {
   const memTail = memoryBlock
     ? `\n\nMEMORY CONTEXT (use naturally; never quote this block):\n${memoryBlock}`
     : '';
-  return `${SYSTEM_INSTRUCTION_BASE}\n\n${MODE_INSTRUCTION[mode]}\n\nTone: ${TONE_INSTRUCTION[tone]}${memTail}`;
+  return `${SYSTEM_INSTRUCTION_BASE}${memTail}`;
 }
 
 export interface StreamCallbacks {
   onQuestionText?: (text: string) => void;
-  onPartialSay?: (text: string) => void;
+  onPartialDefensive?: (text: string) => void;
 }
 
-// Streaming audio → structured JSON with partial SAY emission. On stream
-// failure (truncated JSON, early abort) we transparently retry once on
-// the non-streaming endpoint — the same request usually lands cleanly
-// without streaming complexity. This is the demo-reliability net.
+// Streaming audio -> structured JSON with partial defensive emission.
+// Retries once on the non-streaming endpoint if the stream truncates.
 export async function askGeminiAudio(
   wavBytes: Uint8Array,
-  tone: Tone,
-  mode: Mode,
   cb: StreamCallbacks = {},
   memoryBlock?: string,
 ): Promise<Question> {
   try {
-    return await askGeminiAudioStream(wavBytes, tone, mode, cb, memoryBlock);
+    return await askGeminiAudioStream(wavBytes, cb, memoryBlock);
   } catch (err) {
     const msg = (err as Error)?.message || String(err);
     if (!msg.includes('JSON parse failed') && !msg.includes('empty')) throw err;
-    console.warn('[wondercue] stream path failed, retrying non-streaming:', msg);
-    return await askGeminiAudioOnce(wavBytes, tone, mode, memoryBlock);
+    console.warn('[dk-persona] stream path failed, retrying non-streaming:', msg);
+    return await askGeminiAudioOnce(wavBytes, memoryBlock);
   }
 }
 
 async function askGeminiAudioStream(
   wavBytes: Uint8Array,
-  tone: Tone,
-  mode: Mode,
   cb: StreamCallbacks,
   memoryBlock?: string,
 ): Promise<Question> {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model())}:streamGenerateContent?alt=sse&key=${encodeURIComponent(apiKey())}`;
-  const body = audioBody(wavBytes, tone, mode, memoryBlock);
+  const body = audioBody(wavBytes, memoryBlock);
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -110,16 +126,12 @@ async function askGeminiAudioStream(
   return consumeStream(res.body, cb);
 }
 
-// Non-streaming equivalent. Used as the retry path and directly reachable
-// if we ever want to disable streaming for reliability.
 async function askGeminiAudioOnce(
   wavBytes: Uint8Array,
-  tone: Tone,
-  mode: Mode,
   memoryBlock?: string,
 ): Promise<Question> {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model())}:generateContent?key=${encodeURIComponent(apiKey())}`;
-  const body = audioBody(wavBytes, tone, mode, memoryBlock);
+  const body = audioBody(wavBytes, memoryBlock);
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -135,14 +147,14 @@ async function askGeminiAudioOnce(
   return finalize(text);
 }
 
-function audioBody(wavBytes: Uint8Array, tone: Tone, mode: Mode, memoryBlock?: string) {
+function audioBody(wavBytes: Uint8Array, memoryBlock?: string) {
   return {
-    systemInstruction: { parts: [{ text: systemWith(tone, mode, memoryBlock) }] },
+    systemInstruction: { parts: [{ text: systemWith(memoryBlock) }] },
     contents: [
       {
         role: 'user',
         parts: [
-          { text: "Here is the child's question as audio. Respond with the JSON object." },
+          { text: "Here is the child's question as audio. Respond with the JSON object containing all three options (defensive, offensive, escape)." },
           { inlineData: { mimeType: 'audio/wav', data: bytesToBase64(wavBytes) } },
         ],
       },
@@ -155,54 +167,15 @@ function audioBody(wavBytes: Uint8Array, tone: Tone, mode: Mode, memoryBlock?: s
   };
 }
 
-// Non-streaming text question (used for retone — we already know the question
-// text from the first pass, no need to re-send the audio).
-export async function askGeminiText(
-  questionText: string,
-  tone: Tone,
-  mode: Mode,
-  memoryBlock?: string,
-): Promise<Question> {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model())}:generateContent?key=${encodeURIComponent(apiKey())}`;
-  const body = {
-    systemInstruction: { parts: [{ text: systemWith(tone, mode, memoryBlock) }] },
-    contents: [
-      {
-        role: 'user',
-        parts: [{ text: `The child asked: "${questionText}". Respond with the JSON object.` }],
-      },
-    ],
-    generationConfig: {
-      responseMimeType: 'application/json',
-      responseSchema: RESPONSE_SCHEMA,
-      temperature: 0.8,
-    },
-  };
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const msg = await res.text().catch(() => '');
-    throw new Error(`Gemini HTTP ${res.status}: ${msg.slice(0, 200)}`);
-  }
-  const json = await res.json();
-  const text: string | undefined = json?.candidates?.[0]?.content?.parts?.find((p: any) => p.text)?.text;
-  if (!text) throw new Error('Gemini: empty response');
-  return finalize(text);
-}
-
 async function consumeStream(stream: ReadableStream<Uint8Array>, cb: StreamCallbacks): Promise<Question> {
   const reader = stream.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
   let accumulated = '';
   let sentQuestion = false;
-  let lastPartialSay = '';
+  let lastPartialDefensive = '';
   let eventsSeen = 0;
 
-  // Handle one SSE event payload (the JSON object after `data: `).
   const handleSseEvent = (eventBody: string) => {
     const dataLine = eventBody
       .split('\n')
@@ -215,12 +188,10 @@ async function consumeStream(stream: ReadableStream<Uint8Array>, cb: StreamCallb
     } catch {
       return;
     }
-    // Surface any safety / finish-reason signal in the top-level candidate.
-    // A finishReason of SAFETY, RECITATION, or OTHER means Gemini cut us off.
     const cand = json?.candidates?.[0];
     const finish = cand?.finishReason;
     if (finish && finish !== 'STOP') {
-      console.warn(`[wondercue] Gemini finishReason=${finish}`, cand);
+      console.warn(`[dk-persona] Gemini finishReason=${finish}`, cand);
     }
     const parts: any[] | undefined = cand?.content?.parts;
     if (!parts) return;
@@ -229,7 +200,6 @@ async function consumeStream(stream: ReadableStream<Uint8Array>, cb: StreamCallb
     }
     eventsSeen++;
 
-    // Try to extract questionText once, then stream the partial say.
     if (!sentQuestion) {
       const qt = extractPartial(accumulated, 'questionText');
       if (qt && qt.length > 3) {
@@ -237,12 +207,12 @@ async function consumeStream(stream: ReadableStream<Uint8Array>, cb: StreamCallb
         cb.onQuestionText?.(unescapeJson(qt));
       }
     }
-    const say = extractPartial(accumulated, 'say');
-    if (say != null) {
-      const clean = unescapeJson(say);
-      if (clean !== lastPartialSay) {
-        lastPartialSay = clean;
-        cb.onPartialSay?.(clean);
+    const def = extractPartial(accumulated, 'defensive');
+    if (def != null) {
+      const clean = unescapeJson(def);
+      if (clean !== lastPartialDefensive) {
+        lastPartialDefensive = clean;
+        cb.onPartialDefensive?.(clean);
       }
     }
   };
@@ -259,12 +229,10 @@ async function consumeStream(stream: ReadableStream<Uint8Array>, cb: StreamCallb
     }
   }
   if (buffer.trim()) handleSseEvent(buffer);
-  console.info(`[wondercue] Gemini stream done: ${eventsSeen} events, ${accumulated.length} chars accumulated`);
+  console.info(`[dk-persona] Gemini stream done: ${eventsSeen} events, ${accumulated.length} chars`);
   return finalize(accumulated);
 }
 
-// Extract the value of a top-level string field from a growing JSON buffer.
-// Tolerates incomplete strings at the end of the buffer.
 function extractPartial(buf: string, field: string): string | null {
   const re = new RegExp(`"${field}"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)`);
   const m = re.exec(buf);
@@ -282,33 +250,24 @@ function unescapeJson(s: string): string {
 function finalize(text: string): Question {
   const parsed = tryParseLenient(text);
   if (!parsed) {
-    const full = text.replace(/\s+/g, ' ');
-    console.warn(`[wondercue] Gemini JSON parse failed. Raw length: ${text.length}. Full text:\n`, text);
-    const preview = full.slice(0, 120);
-    const suffix = full.length > 120 ? '\u2026' : '';
+    console.warn(`[dk-persona] Gemini JSON parse failed. Raw length: ${text.length}. Full text:\n`, text);
+    const preview = text.replace(/\s+/g, ' ').slice(0, 120);
+    const suffix = text.length > 120 ? '\u2026' : '';
     throw new Error(`Gemini: JSON parse failed (len=${text.length}: ${preview}${suffix})`);
   }
   return {
     text: String(parsed.questionText ?? '').trim() || '(unclear)',
     topic: normalizeTopic(parsed.topic),
-    say: clampStr(parsed.say, 60),
-    ask: clampStr(parsed.ask, 50),
-    try: clampStr(parsed.try_, 55),
+    defensive: clampStr(parsed.defensive, ROW_BUDGET),
+    offensive: clampStr(parsed.offensive, ROW_BUDGET),
+    escape: clampStr(parsed.escape, ROW_BUDGET),
   };
 }
 
-// Gemini's streamGenerateContent with responseMimeType=application/json
-// USUALLY returns a single JSON object, but SSE streams occasionally wrap
-// it in an array like `[{...}]`, or emit a leading/trailing wrapper. This
-// helper tries common recoveries before giving up.
 function tryParseLenient(text: string): any | null {
   const trimmed = text.trim();
   if (!trimmed) return null;
-
-  // 1. Straight parse
   try { return JSON.parse(trimmed); } catch { /* fall through */ }
-
-  // 2. Array wrapping: some streams return `[{...}, {...}]`; merge objects.
   if (trimmed.startsWith('[')) {
     try {
       const arr = JSON.parse(trimmed);
@@ -317,14 +276,10 @@ function tryParseLenient(text: string): any | null {
       }
     } catch { /* fall through */ }
   }
-
-  // 3. Extract the first top-level object by brace balancing (tolerates
-  //    prefix/suffix noise or truncation).
   const first = extractFirstJsonObject(trimmed);
   if (first) {
     try { return JSON.parse(first); } catch { /* fall through */ }
   }
-
   return null;
 }
 
