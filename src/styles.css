@@ -121,6 +121,16 @@ section {
   color: var(--muted);
   font-size: 12px;
 }
+.tone-chip {
+  font-size: 11px;
+  color: var(--accent);
+  padding: 2px 8px;
+  border: 1px solid #1d3a22;
+  border-radius: 999px;
+  background: #102015;
+  text-transform: lowercase;
+  letter-spacing: 0.4px;
+}
 
 .mock-controls {
   display: flex;
