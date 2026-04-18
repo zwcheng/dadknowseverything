@@ -45,10 +45,12 @@ expectations one-to-one — no resampling.
 ```
 
 Nothing novel here: the phone is the whole brain. Audio gets WAV-wrapped and
-sent to Gemini's streaming `generateContent` endpoint; as the JSON response
-streams back, the app extracts `questionText` first (for a quick transcript
-echo), then reveals `say` on the card character-by-character, and finally
-parses the complete JSON for `ask` / `try` / `topic` when the stream ends.
+sent to Gemini's streaming `generateContent` endpoint. As SSE chunks arrive,
+partial `say` text renders directly into the THINKING view — the answer
+appears live as tokens land, so perceived latency drops to ~500 ms from
+stop-listen. When the stream completes (or on retry via the non-streaming
+endpoint if the stream truncates), the full JSON is parsed for
+`questionText` / `topic` / `ask` / `try` and the state transitions to SHOWING.
 
 ## Files
 
@@ -56,7 +58,7 @@ parses the complete JSON for `ask` / `try` / `topic` when the stream ends.
 src/
 ├── App.tsx        bootstrap, bridge subscription, dev panel, orchestration
 ├── bridge.ts      SDK wrapper + browser mock (graceful Chrome-only dev)
-├── state.ts       reducer-based FSM (idle / listening / thinking / transcript / showing / saved)
+├── state.ts       reducer-based FSM (idle / listening / thinking / showing / saved)
 ├── display.ts     card rendering, glyph + spinner constants, upgradeCard helper
 ├── gemini.ts      streaming `askGeminiAudio` + non-streaming `askGeminiText`
 ├── cards.ts       canned Q/A pool for stage mode
@@ -82,36 +84,38 @@ app.json           Even Hub manifest (permissions, package_id, min_sdk_version)
         └───────┬───────┘     │
       click | double | 8 s    │
                  ▼            │
-        ┌───────────────┐     │
-        │   THINKING    │     │
-        │  (spinner +   │     │
-        │   streaming)  │     │
-        └───────┬───────┘     │
-                │             │
-            heard(q)          │
-                ▼             │
-        ┌───────────────┐     │
-        │  TRANSCRIPT   │     │
-        │  (700 ms)     │     │
-        └───────┬───────┘     │
-                ▼             │
+  ┌───────────────────────┐   │
+  │      THINKING         │   │
+  │  (spinner, then       │   │
+  │   partial SAY paints  │   │
+  │   live as tokens      │   │
+  │   stream in)          │   │
+  └───────┬───────────────┘   │
+          │                   │
+      heard(q)                │
+          ▼                   │
   ┌─────────────────────────┐ │
   │        SHOWING          │ │
   │    card 0 → 1 → 2       │ │
-  │  (stream-say updates)   │ │
-  └──┬────────┬──────────┬──┘ │
-  click   swipe-up    double  │
-     │       │           │    │
-     │       ▼           ▼    │
-     │  THINKING      SAVED   │
-     │  (retone)        │     │
-     │  (text-only      │     │
-     │   Gemini)        │ 1.4s│
-     └──────┬──         │     │
-            ▼           ▼     │
-         SHOWING   ─────┘     │
-                             ─┘
+  │    (tone · mode)        │ │
+  └──┬────────┬──────┬──┬───┘ │
+  click   swipe-up  nod double
+     │       │       │    │   │
+     │       ▼       ▼    ▼   │
+     │  THINKING   SAVED  (save)
+     │  (retone)           1.4s
+     │  text-only        │
+     └──────┬──          │
+            ▼            ▼
+         SHOWING     ────┘
+                            ─┘
 ```
+
+Notes on the main flow: partial SAY tokens from the Gemini stream paint
+directly into the THINKING view so the user sees the answer building up
+live. On `heard` the state transitions straight to SHOWING — there's no
+transcript-echo state between (that beat used to live here; removed for
+demo latency since the partial paint replaces it).
 
 Reducer logic lives in `src/state.ts`. Side effects (timers, spinner
 ticks, Gemini calls, audio control) live in App.tsx's state-entry effect.
@@ -251,9 +255,13 @@ Dev-panel keyboard equivalents (preview only): `D` · `Space` · `T` · `R`
 | **3. SDK shape** | Rewrote API calls to use object args (`createStartUpPageContainer({textObject:[...]})`), added `getEventType` that unions `textEvent.eventType ?? listEvent.eventType ?? sysEvent.eventType`. Simulator stopped warning. |
 | **4. Live AI** | Gemini 2.5 Flash with inline WAV audio, `responseSchema` for structured output, stage-mode toggle, `.env` key loading. Validated with a text-only ping. |
 | **5. Budget fit** | Tightened layout: single-line header `LABEL (idx/3)` + body, no footer text. Budgets dropped from 80/60/70 to 60/50/55. Prompt now demands "HARD character limits" + "COUNT before emitting." |
-| **6. Polish** | Streaming SAY via SSE, transcript echo state, animated thinking spinner, topic glyphs, adaptive tones with swipe-up, stage auto-drive (`R`). |
+| **6. Polish** | Streaming SAY via SSE, animated thinking spinner, topic glyphs, adaptive tones with swipe-up, stage auto-drive (`R`). |
 | **7. Font fix** | Braille spinner rendered blank on G2's LVGL font. Swapped to ASCII `\| / - \` rotator. Kept topic glyphs ASCII as well. |
 | **8. Repo** | Git init, personal author scoped to repo, `.env` ignored, README, pushed to `github.com/zwcheng/dadknowseverything`. |
+| **9. Memory + Bounce** | Local-first kid profile + Wonder Moments history + insights; prompt-injection hardening; Bounce mode (grounded counter-questions with safety override). |
+| **10. Build Day readiness** | IMU nod/shake gesture detector wired to SHOWING state; onDeviceStatusChanged auto-pauses mic when unworn; image container + topic pixel-art (gated); consolidated deck; `docs/REHEARSAL.md` with minute-by-minute script. |
+| **11. Latency pass** | Removed transcript-echo state (saved 700 ms); partial SAY now paints live into THINKING so answer appears as tokens arrive; spinner throttled 10 Hz → 4 Hz to reduce bridge traffic; `VITE_GEMINI_MODEL` knob documented (flash-lite for ~30–50% faster). End-to-end from stop-listen to first visible text ≈ 450 ms. |
+| **12. Reliability** | Gemini parse hardened: lenient parser handles array-wrapped / brace-unbalanced responses; automatic non-streaming retry when the stream aborts mid-JSON; finishReason (SAFETY / RECITATION) surfaced to console; diag chips in the phone UI show audio byte count + resolve source (`live` / `short` / `error` / `stage`) with precise context. |
 
 ## Simulator automation
 

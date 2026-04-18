@@ -1,150 +1,165 @@
 # Rehearsal Script — Build Day @ Thinkspace Seattle
 
-5-minute demo slot. Opinionated timing, fallbacks pre-loaded, nothing left to chance.
+5-minute demo slot. 7 slides. Opinionated timing, fallbacks pre-loaded,
+nothing left to chance.
+
+Deck lives at `docs/slides.html`. Press `P` during presentation to hide
+the speaker-note footers on each slide.
 
 ## Pre-show checklist (10 min before)
 
 - [ ] Laptop on venue WiFi. Open `npm run dev` and confirm `http://localhost:5173` loads
 - [ ] Open simulator: `evenhub-simulator --glow --automation-port 9898 http://localhost:5173`
 - [ ] Confirm `Live Gemini` button is green (not forced to stage). Verify `.env` key loaded
-- [ ] Open slide deck in second browser tab: `http://localhost:5173/docs/slides.html`, press `F` for fullscreen
-- [ ] Open terminal with pre-typed curl commands ready for automation fallback (see §Fallbacks)
-- [ ] Edit the kid profile to a demo-ready name (Mia, 7, `space, dinosaurs, her dog Pepper`)
+- [ ] Open deck in a second browser tab: `http://localhost:5173/docs/slides.html`, press `F` for fullscreen, `P` to hide the footer speaker notes during presentation
+- [ ] Open a terminal with the fallback curl commands ready (see §Fallbacks)
+- [ ] Edit the kid profile to a demo-ready name (default is Even, age 7, `space, dinosaurs, her dog Pepper`)
 - [ ] Clear Wonder Trail (Reset button in profile card) so the demo starts clean
-- [ ] Quick canned-stage run: toggle Stage on, drive auto-rehearsal with `R`, verify cards render, toggle back to Live
+- [ ] Stage-mode dry run: toggle Stage on, drive auto-rehearsal with `R`, verify cards render, toggle back to Live
+- [ ] Speak one real question through the sim mic to confirm `resolve: live (X.Xs)` shows in the diag chip
 
-Keep a terminal open to `tail -f /tmp/evensim.log` during the demo — the only way to tell if the sim hit an error live.
+Keep a terminal open to `tail -f /tmp/evensim.log` during the demo.
 
-## The 5-minute arc
+## Slide flow (5:00 total · ~45s per slide)
 
-### 0:00 — 0:20 · Opening (Slide 1)
+### Slide 1 — Title · 0:00–0:25
 
-> "Even built glasses that refused the AR playbook. No camera. No speaker. One tiny display per lens. They called it Quiet Tech.
+> "Even built glasses that refused the AR playbook. No camera. No speaker. One tiny display per lens — they call it **Quiet Tech**.
 >
-> What I built is a product that wouldn't make sense on any other device."
+> DadKnowsEVERYTHING is a real-time **curiosity copilot** for parent-child moments. It's built for a device nobody else could have shipped."
 
-*Leave on title slide. Don't skip ahead.*
+Hit the three prize chips with your eyes briefly before advancing.
 
-### 0:20 — 0:50 · The moment (Slide 2)
+### Slide 2 — The whole picture · 0:25–1:25
 
-> "Kids ask a hundred whys a day. Car rides. Grocery stores. Bedtime. Parents want to stay present — not pull out a phone every time. The other AR answer is a camera pointed at your kid, which nobody asked for."
+This is the one-pager. If the clock runs out anywhere after this slide, you've already landed the whole story.
 
-*Arrow-right to slide 2.*
-
-### 0:50 — 1:15 · The insight (Slide 3)
-
-> "Research on early learning is clear: back-and-forth conversation — what Harvard calls serve-and-return — is what shapes language and reasoning. Small prompts meaningfully change how a family talks. The goal isn't to answer. It's to help the adult extend the moment."
-
-*Arrow-right to slide 3.*
-
-### 1:15 — 2:45 · LIVE DEMO — Answer mode (Slide 4)
-
-Switch to sim window. Slide can stay as reference.
-
-> "Double-press the temple..." `click double-press (D)` or speak into the mic
+> "Four things sitting next to each other on this slide.
 >
-> *Transcript echoes: "Heard you: why is the moon out in the daytime?"*
+> **The moment** — kids ask a hundred whys a day. Parents want to stay present. Phones pull you out. Camera-AR glasses are worse — nobody wants a lens pointed at their kid.
 >
-> "SAY streams in from Gemini in under a second..."
+> **The product** — double-press, kid asks, three cards on the glasses. Answer mode for the what. Bounce mode for the play. Nod to save.
 >
-> "ASK. TRY."  *click through with Space*
+> **The category** — invisible copilots for in-person moments. Tutor, clinical, neurodiverse, field work — same rails, different conversations. G2 is the only device this class runs on.
 >
-> "And to save it — I nod."  `click nod (N)`
->
-> *Card switches to `Saved.` — Wonder Trail count increments*
+> **The moat** — memory grows. Local-first profile that learns what the kid asked, how they think, what they're into. Next answer is personalized. Harder to replicate elsewhere."
 
-**Fallback:** if Gemini silent or slow after 4s → switch to Stage mode in the phone UI, re-run.
-**Fallback 2:** if the sim mic doesn't hear you → say "let me read this one out" and paste the canned moon question into the `.env`'s `VITE_STAGE_QUESTION` (not real — just describe the recovery).
+### Slide 3 — Demo · Answer mode · 1:25–2:40
 
-### 2:45 — 3:30 · LIVE DEMO — Bounce mode (Slide 5)
+Switch focus to the simulator window. Slide stays up as reference.
 
-> "Kids aren't always looking for answers. Sometimes they're looking to play."
+> "Let me show you. Double-press..."  `curl -X POST ... double_click`
 >
-> *`click swipe-down (B)` to flip mode while card is showing*
+> *Speak clearly:* "why is the moon out in the daytime?"
+>
+> "Click to stop..."  `curl -X POST ... click`
+>
+> *SAY appears word-by-word as Gemini streams. ~500 ms to first text.*
+>
+> "SAY. ASK. TRY."  *click through with each*
+>
+> "And I nod to save."  *nod head — IMU catches it*
+>
+> *Card flips to `Saved.` Wonder Trail count ticks.*
+
+Timing target: from stop-click to first word on glasses under one second.
+
+### Slide 4 — Demo · Bounce mode · 2:40–3:20
+
+> "But kids aren't always looking for answers. Sometimes they're looking to play."
+>
+> *Swipe-down to flip mode while the card is still up.*
 >
 > *BOUNCE card: "Where do you think the moon goes during the day?"*
 >
-> *pause for laughter*
+> *Pause for laughter.*
 >
-> *`click click (Space)` to reveal TWIST: "Does the moon take a nap?"*
+> *Click to reveal TWIST: "Does the moon take a nap?"*
 >
-> *more laughter — try to hold it*
+> *Pause — hold the beat.*
 >
-> *`click click (Space)` → TRUTH: the real answer, ready for when the kid actually wants to know.*
-
-**Key line to land right after:** "Same question. Two postures. The parent picks the moment — the glasses help them match it."
-
-### 3:30 — 4:00 · Memory (Slide 6)
-
-> "Every saved moment feeds a local profile. Next time Mia asks about the moon, Gemini knows her name, her reading level, and everything she's already asked. That's the with-memory column — her name, a callback to last week's question."
+> "Same question. Two postures. The parent picks the moment — the glasses help them match it.
 >
-> "Local-first. Parent-editable. Never trained on. Never ad-targeted."
+> Safety override in the prompt forces Answer for anything medical or serious. Bounce never dodges a real question."
 
-### 4:00 — 4:30 · Why Even G2 (Slide 7)
+### Slide 5 — Blueprint · 3:20–3:55
 
-> "None of this works on anything else.
+Advance to the blueprint one-pager.
+
+> "Everything you just saw fits on this slide.
 >
-> No camera — privacy is default.
-> No speaker — line-of-sight only.
-> Tiny canvas — one idea per card. Discipline.
-> 4-mic 16 kHz PCM — feeds Gemini with no resampling.
-> Temple + IMU — two presses and a nod."
+> Left side: the feature checklist. Audio capture, streaming into the thinking view, card cycle, tone and mode retone, IMU nod, auto-pause when the glasses come off, memory profile, stage-mode offline fallback — all built, all on stage today.
 >
-> "Plus: when you take the glasses off, the mic auto-stops. The product steps back when attention leaves. The hardware stance is the product posture."
-
-### 4:30 — 4:55 · Platform (Slide 8)
-
-> "Same hardware, same memory rails, different conversations. Tutor. Language partner. Clinical handoff. Neurodiverse scaffolding. Field inspection. Once the first lane ships, every other one gets easier.
+> Right side: the loop. G2 mic to phone WebView to Gemini to glasses display. One phone, one model, one HTTPS stream, flicker-free `textContainerUpgrade` on the way back.
 >
-> G2 becomes the reference platform for invisible copilots."
+> Vite + React + TypeScript. Gemini 2.5 Flash inline audio. No backend — memory is localStorage. The whole thing is ~1500 lines."
 
-### 4:55 — 5:00 · Close (Slide 9)
+### Slide 6 — Memory + platform · 3:55–4:30
+
+> "Memory is the moat. Platform is the lane.
+>
+> Left: Even's profile builds over use. 'Why is the moon out in the daytime' gets answered differently once memory knows she asked about it last week. Local-first, parent-editable, never trained on, never ad-targeted.
+>
+> Right: five more lanes that share the same G2 rails. Tutor. Language partner. Clinical care. Neurodiverse scaffolding. Field work. We built one today — the other five are easier because of it."
+
+### Slide 7 — Close · 4:30–5:00
 
 > "Not school on glasses. A real-time curiosity copilot for family life.
 >
-> Everyday. Brand-fit. And — I hope — the crowd laugh."
-
-*Leave on close slide for Q&A.*
+> Everyday use case. Brand fit. People's choice.
+>
+> *(pause · hold eye contact · 2 seconds)*
+>
+> Thanks. Questions?"
 
 ## Anticipated questions + pre-loaded answers
 
 **Q1: How does it handle safety topics? Medical stuff?**
-> "Bounce mode has an explicit safety override in the system prompt — medical, injury, or emotional-distress topics force Answer shape regardless of the user's toggle. The model classifies first."
+> "Bounce mode has an explicit safety override in the system prompt — medical, injury, or emotional-distress topics force Answer shape regardless of mode. The model classifies first. We'd combine with a safer model or an audit pipeline for production."
 
 **Q2: What about voices that aren't your kid's?**
 > "Today, any voice works. Speaker enrollment is a V2 feature — on-device embedding per kid. The memory moat ships first because it's the product; speaker ID is the polish."
 
 **Q3: Is this on-device or cloud?**
-> "Hybrid. Memory stays local — end-to-end encrypted when synced across parent devices. The model lives in Gemini's cloud today. On-device Gemini Nano is on the roadmap once audio inline support lands."
+> "Hybrid. Memory is local — end-to-end encrypted when synced across parents. Model is Gemini cloud today. On-device (Gemini Nano) is on the roadmap once audio inline support lands."
 
 **Q4: Why Gemini over OpenAI / Claude / others?**
-> "16 kHz PCM audio in, structured JSON out, native streaming, no resampling, `propertyOrdering` in the schema to stream SAY first. Flash is fast enough for sub-second first-token. Could swap — Claude Haiku 4.5 would be next pick."
+> "16 kHz PCM audio in, structured JSON out, native streaming, `propertyOrdering` to land SAY first. Flash gets us sub-second first-token. Claude Haiku 4.5 would be the swap-in if we ever needed it — same latency profile."
 
-**Q5: Will this get kids to talk to glasses instead of their parents?**
-> "Opposite. The cards go to the *parent*, not the kid. The kid never sees them. It's scaffolding for the adult, not a replacement for them. That's why I call it a copilot — it helps you fly."
+**Q5: Will this get kids talking to glasses instead of their parents?**
+> "Opposite. The cards go to the *parent*, not the kid. The kid never sees them. It's scaffolding for the adult, not a replacement. That's why I call it a copilot — it helps you fly, not flies for you."
 
-**Q6: What's the parent paying for?**
-> "Free tier is local memory. Paid is cloud sync, multi-parent accounts, insights dashboard, curriculum-aligned exports. Zero ad tier on principle."
+**Q6: What's the business model?**
+> "Free tier is local memory. Paid is cloud sync, multi-parent accounts, insights dashboard, curriculum exports. Zero ad tier on principle."
 
-**Q7: What if it gets it wrong?**
-> "Three cards per utterance. Swipe-up to retone (simple / playful / science). Swipe-down for Bounce. If all three fail — single-press to dismiss, no harm done. Latency on retone is half a second because we don't re-upload audio."
+**Q7: What if it gets the answer wrong?**
+> "Three cards per utterance. Swipe-up to retone (simple / playful / science). Swipe-down for Bounce. If all three fail — single-press to dismiss, nothing saved. Retone is half a second because we don't re-upload audio."
+
+**Q8: Latency feels instant — how?**
+> "Streaming JSON response with `propertyOrdering` so SAY's tokens arrive first. We paint them directly into the thinking view as they stream in. First visible text lands under 500 ms from stop-click. No transcript-echo beat — the streaming IS the feedback."
 
 ## Fallback plans
 
 | If… | Do… |
 |---|---|
-| Gemini WSS blocked by venue WiFi | Toggle Stage mode. Flow is identical, canned content. |
-| Sim mic can't hear in loud room | Paraphrase live: `curl -X POST ... double_click` then speak close to the laptop. |
-| Sim hangs mid-demo | Kill + restart: `pkill -f evenhub-simulator; evenhub-simulator --glow --automation-port 9898 http://localhost:5173 &` |
-| Profile got mangled | Reset button in phone UI resets to default Mia profile. |
-| IMU nod doesn't trigger (sim mic missing) | Use `click nod (N)` dev button, say "you get the idea — on hardware this is a literal head nod." |
-| Slide tab lost | It's at `/docs/slides.html`. Hash `#N` jumps to slide N. |
-| Laptop crashes | GitHub URL on close slide; backup video on phone if possible. |
+| Gemini timing out / WiFi blocked | Phone UI → toggle **Stage mode** (canned Q/A). Flow identical. Say "here's the offline path — same flow, zero network." |
+| Sim mic can't hear you in a loud room | Paraphrase live. Or pre-record the canned question WAV to `/tmp` and pipe via sox into the sim mic. |
+| Sim hangs mid-demo | `pkill -f evenhub-simulator; evenhub-simulator --glow --automation-port 9898 http://localhost:5173 &` |
+| Profile corrupted | Reset button in phone UI seeds default Even profile. |
+| IMU nod doesn't fire | Click the `nod (N)` dev button. Say "you get the idea — on the real hardware this is a literal head nod." |
+| Slide tab lost | `http://localhost:5173/docs/slides.html#N` jumps to slide N. |
+| Laptop crashes mid-pitch | Repo URL on close slide. Walk the rest verbally. |
 
 ## Rehearsal targets
 
-- Run through the full 5:00 arc **three times** end-to-end before the event
-- Time each run. Target 4:30–5:00 (aim for 4:45 so there's room for laughter holds)
-- Record one dry run to phone, review for pace and energy
-- Rehearse the Bounce laugh hold — don't rush past the punchline
-- Memorize the Why-Even line (0:20 opening) word-for-word
+- Run the full 5:00 three times before the event. Time each run
+- Target 4:30–5:00 — leave room for laughter on Bounce
+- Record one dry run to phone; review for pace and energy
+- Rehearse the Bounce laugh **hold** — don't rush past the punchline
+- Memorize the Quiet Tech opener and the close tagline word-for-word
+
+## Speaker-notes toggle
+
+Each slide has a small muted footer with a timing and framing hint for
+the presenter. Press `P` to hide them during the live presentation — the
+audience shouldn't see your cheat sheet.
