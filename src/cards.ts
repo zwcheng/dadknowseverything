@@ -10,9 +10,9 @@ export type Topic = 'nature' | 'space' | 'body' | 'animals' | 'everyday';
 export interface Question {
   text: string;
   topic: Topic;
-  defensive: string;  // <= 48 chars
-  offensive: string;  // <= 48 chars
-  escape: string;     // <= 48 chars
+  defensive: string;  // <= 100 chars
+  offensive: string;  // <= 100 chars
+  escape: string;     // <= 100 chars
 }
 
 // Canned triads used in stage mode (no network) and as the offline

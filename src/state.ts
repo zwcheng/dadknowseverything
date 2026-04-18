@@ -8,8 +8,7 @@
 //    └────────────────── reset / glasses-off ─────┴──── double ──────┘
 //                                                       (start a new question)
 //
-// No card cycling, no tone toggles, no mode swaps. One screen, three options,
-// read-and-speak.
+// No tone toggles, no mode swaps. One screen, three options, read-and-speak.
 
 import type { Question } from './cards';
 

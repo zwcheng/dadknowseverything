@@ -14,9 +14,10 @@ import { bytesToBase64 } from './pcm';
 
 const DEFAULT_MODEL = 'gemini-2.5-flash';
 
-// Hard budget per row. Measured against G2's proportional LVGL font;
-// ~48 chars wraps reliably to a single row on most utterances.
-const ROW_BUDGET = 48;
+// Hard budget per D/O/E field. wrapField in display.ts handles
+// visual line breaks, so this budget allows up to 2 full rows
+// (~50 chars each). Gemini should produce complete sentences.
+const ROW_BUDGET = 100;
 
 const SYSTEM_INSTRUCTION_BASE = `You are DadKnowsEVERYTHING: Persona Defense. A child has just asked a parent a question aloud. The parent is wearing Even G2 smart glasses and will silently read ONE of the three options you produce and say it out loud. Produce ALL THREE every time.
 
@@ -311,5 +312,12 @@ function normalizeTopic(t: unknown): Topic {
 
 function clampStr(s: unknown, max: number): string {
   const str = String(s ?? '').trim();
-  return str.length > max ? str.slice(0, max - 1) + '\u2026' : str;
+  if (str.length <= max) return str;
+  // Try to break at a word boundary for cleaner truncation.
+  const truncated = str.slice(0, max - 1);
+  const lastSpace = truncated.lastIndexOf(' ');
+  if (lastSpace > max * 0.6) {
+    return truncated.slice(0, lastSpace) + '\u2026';
+  }
+  return truncated + '\u2026';
 }
