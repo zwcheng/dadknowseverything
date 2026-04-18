@@ -6,8 +6,6 @@
 
 import type { EvenBridgeLike } from '../bridge';
 import type { Topic } from '../cards';
-import type { Tone } from '../tones';
-import type { Mode } from '../modes';
 
 export type LanguageLevel = 'preschool' | 'early-elementary' | 'late-elementary';
 
@@ -27,12 +25,9 @@ export interface WonderMoment {
   at: number;
   question: string;
   topic: Topic;
-  tone: Tone;
-  mode: Mode;
-  say: string;
-  ask: string;
-  try_: string;
-  parentAction: 'saved' | 'skipped' | 'retoned';
+  defensive: string;
+  offensive: string;
+  escape: string;
 }
 
 export interface MemoryStore {
