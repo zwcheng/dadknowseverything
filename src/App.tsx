@@ -21,11 +21,28 @@ import {
 } from './display';
 import { reduce, initialState, type State } from './state';
 import { DEMO_QUESTIONS, type Question } from './cards';
-import { appendTrail, loadTrail, type TrailItem } from './trail';
 import { concatBytes, pcmToWav, toUint8Array } from './pcm';
 import { askGeminiAudio, askGeminiText, geminiConfigured } from './gemini';
 import { getStage, setStage, stageReason } from './stageMode';
-import { TONES, nextTone, type Tone } from './tones';
+import { nextTone, type Tone } from './tones';
+import { nextMode, MODE_LABEL, type Mode } from './modes';
+import {
+  emptyStore,
+  ensureActiveKid,
+  getActive,
+  loadStore,
+  saveStore,
+  type KidProfile,
+  type MemoryStore,
+} from './memory/profile';
+import {
+  appendMoment,
+  historyFor,
+  momentFromQuestion,
+  recent,
+} from './memory/history';
+import { computeInsights } from './memory/insights';
+import { buildMemoryContext } from './memory/context';
 
 const LISTEN_MAX_MS = 8000;
 const SAVED_MS = 1400;
@@ -38,15 +55,22 @@ export default function App() {
   const [bridge, setBridge] = useState<EvenBridgeLike | null>(null);
   const [isMock, setIsMock] = useState(false);
   const [eventLog, setEventLog] = useState<string[]>([]);
-  const [trail, setTrail] = useState<TrailItem[]>([]);
+  const [memory, setMemory] = useState<MemoryStore>(emptyStore());
   const [stage, setStageState] = useState<boolean>(getStage());
   const [lastQuestion, setLastQuestion] = useState<string>('');
+  const [editingProfile, setEditingProfile] = useState(false);
 
   const audioBuffer = useRef<Uint8Array[]>([]);
-  const qCursor = useRef(0);
-  const toneRef = useRef<Tone>('simple');   // tone for the CURRENT utterance
+  const toneRef = useRef<Tone>('simple');
+  const modeRef = useRef<Mode>('answer');
+  const memoryRef = useRef<MemoryStore>(emptyStore()); // always up-to-date for async callers
+  const [mode, setModeState] = useState<Mode>('answer');
 
-  // Bootstrap: load SDK / bridge, create the startup page, subscribe to events.
+  // Keep memoryRef mirrored so async Gemini calls see the latest store.
+  useEffect(() => { memoryRef.current = memory; }, [memory]);
+
+  // Bootstrap: load SDK / bridge, create the startup page, subscribe events,
+  // seed or load the memory store (active kid + history).
   useEffect(() => {
     let unsub: (() => void) | undefined;
     let cancelled = false;
@@ -69,14 +93,15 @@ export default function App() {
         console.warn('[wondercue] createStartUpPageContainer failed', err);
       }
 
-      setTrail(await loadTrail(b));
+      const store = await ensureActiveKid(b);
+      if (cancelled) return;
+      setMemory(store);
 
       unsub = b.onEvenHubEvent((ev: AnyEvent) => {
         if (ev.audioEvent?.audioPcm != null) {
           audioBuffer.current.push(toUint8Array(ev.audioEvent.audioPcm));
           return;
         }
-
         const t = getEventType(ev);
         if (t == null) return;
         setEventLog((log) => [`event:${t} @${new Date().toLocaleTimeString()}`, ...log].slice(0, 8));
@@ -97,8 +122,7 @@ export default function App() {
     };
   }, []);
 
-  // State-entry side effects: listen start, audio collection, Gemini call,
-  // spinner ticking, transcript timer, saved auto-return.
+  // State-entry side effects.
   useEffect(() => {
     if (!bridge) return;
     let maxTimer: number | undefined;
@@ -108,31 +132,43 @@ export default function App() {
     let cancelled = false;
 
     if (state.kind === 'listening') {
-      toneRef.current = 'simple';
+      toneRef.current = activeInsights().preferredTone;
+      modeRef.current = mode;
       audioBuffer.current = [];
       bridge.audioControl?.(true).catch(() => {});
       maxTimer = window.setTimeout(() => dispatch({ type: 'stop-listen' }), LISTEN_MAX_MS);
     } else if (state.kind === 'thinking') {
       spinnerInterval = window.setInterval(() => dispatch({ type: 'spinner-tick' }), SPINNER_TICK_MS);
       const retoneQ = state.retone?.q;
+      const retoneKind = state.retone?.kind;
+      const mem = currentMemoryBlock();
       if (retoneQ) {
-        const tone = nextTone(toneRef.current);
-        toneRef.current = tone;
+        // A retone reuses the same question text but flips either the tone
+        // (swipe-up) or the mode (swipe-down) before asking Gemini again.
+        let nextToneVal = toneRef.current;
+        let nextModeVal = modeRef.current;
+        if (retoneKind === 'tone') {
+          nextToneVal = nextTone(toneRef.current);
+          toneRef.current = nextToneVal;
+        } else if (retoneKind === 'mode') {
+          nextModeVal = nextMode(modeRef.current);
+          modeRef.current = nextModeVal;
+          setModeState(nextModeVal);
+        }
         (async () => {
-          // Stage mode stays offline: cycle tone label without re-querying.
           if (stage || !geminiConfigured()) {
             if (cancelled) return;
-            dispatch({ type: 'heard', q: retoneQ, tone });
+            dispatch({ type: 'heard', q: retoneQ, tone: nextToneVal, mode: nextModeVal });
             return;
           }
           try {
-            const q = await askGeminiText(retoneQ.text, tone);
+            const q = await askGeminiText(retoneQ.text, nextToneVal, nextModeVal, mem);
             if (cancelled) return;
-            dispatch({ type: 'heard', q, tone });
+            dispatch({ type: 'heard', q, tone: nextToneVal, mode: nextModeVal });
           } catch (err) {
             console.warn('[wondercue] retone failed; staying with prior q', err);
             if (cancelled) return;
-            dispatch({ type: 'heard', q: retoneQ, tone });
+            dispatch({ type: 'heard', q: retoneQ, tone: nextToneVal, mode: nextModeVal });
           }
         })();
       } else {
@@ -141,19 +177,23 @@ export default function App() {
         audioBuffer.current = [];
         (async () => {
           const tone = toneRef.current;
-          const q = await resolveQuestion(frames, qCursor.current, stage, isMock, tone, (p) =>
+          const modeNow = modeRef.current;
+          const q = await resolveQuestion(frames, stage, isMock, tone, modeNow, mem, (p) =>
             dispatch({ type: 'stream-say', partial: p })
           );
           if (cancelled) return;
-          qCursor.current += 1;
           setLastQuestion(q.text);
-          dispatch({ type: 'heard', q, tone });
+          dispatch({ type: 'heard', q, tone, mode: modeNow });
         })();
       }
     } else if (state.kind === 'transcript') {
       transcriptTimer = window.setTimeout(() => dispatch({ type: 'show-cards' }), TRANSCRIPT_MS);
     } else if (state.kind === 'saved') {
-      appendTrail(bridge, state.q).then(setTrail).catch(() => {});
+      const activeKid = getActive(memoryRef.current);
+      if (activeKid && bridge) {
+        const moment = momentFromQuestion(activeKid.id, state.q, state.tone, state.mode);
+        appendMoment(bridge, moment).then(setMemory).catch(() => {});
+      }
       savedTimer = window.setTimeout(() => dispatch({ type: 'saved-done' }), SAVED_MS);
     }
 
@@ -165,15 +205,14 @@ export default function App() {
       if (spinnerInterval) window.clearInterval(spinnerInterval);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.kind, bridge, stage, isMock]);
+  }, [state.kind, bridge, stage, isMock, mode]);
 
-  // Mirror state → glasses display on every dispatch.
+  // Mirror state → glasses display.
   useEffect(() => {
     if (!bridge) return;
     upgradeCard(bridge, renderForState(state)).catch(() => {});
   }, [state, bridge]);
 
-  // Dev gesture simulation: keyboard + buttons, always available in dev.
   const devFire = (t: number) => {
     if (t === EventType.DOUBLE_CLICK) dispatch({ type: 'double' });
     else if (t === EventType.CLICK) dispatch({ type: 'click' });
@@ -182,7 +221,6 @@ export default function App() {
     setEventLog((log) => [`dev:${t} @${new Date().toLocaleTimeString()}`, ...log].slice(0, 8));
   };
 
-  // Stage auto-drive: one keystroke drives a full rehearsal from idle.
   const autoDrive = () => {
     const seq: Array<[number, () => void]> = [
       [0, () => dispatch({ type: 'double' })],
@@ -198,9 +236,11 @@ export default function App() {
   useEffect(() => {
     if (!import.meta.env.DEV) return;
     const handler = (e: KeyboardEvent) => {
+      if ((e.target as HTMLElement)?.matches?.('input, textarea, [contenteditable="true"]')) return;
       if (e.key === 'd' || e.key === 'D') devFire(EventType.DOUBLE_CLICK);
       else if (e.key === ' ' || e.key === 'Enter') devFire(EventType.CLICK);
       else if (e.key === 't' || e.key === 'T') devFire(EventType.SCROLL_TOP);
+      else if (e.key === 'b' || e.key === 'B') devFire(EventType.SCROLL_BOTTOM);
       else if (e.key === 'r' || e.key === 'R') autoDrive();
     };
     window.addEventListener('keydown', handler);
@@ -214,12 +254,68 @@ export default function App() {
     setStageState(next);
   };
 
+  // Mode toggle from the phone UI. If a card is currently showing, retone it
+  // through the state machine so the card flips; otherwise just set the mode
+  // so the next utterance uses it.
+  const toggleMode = () => {
+    const nxt = nextMode(mode);
+    setModeState(nxt);
+    modeRef.current = nxt;
+    if (state.kind === 'showing') dispatch({ type: 'scroll-bottom' });
+  };
+
+  const saveProfile = async (p: KidProfile) => {
+    if (!bridge) return;
+    // Re-read the freshest store so concurrent appendMoment writes aren't
+    // stomped by an in-memory snapshot.
+    const fresh = await loadStore(bridge);
+    const next: MemoryStore = {
+      ...fresh,
+      kids: { ...fresh.kids, [p.id]: p },
+      activeKidId: p.id,
+    };
+    await saveStore(bridge, next);
+    setMemory(next);
+    setEditingProfile(false);
+  };
+
+  const resetMemory = async () => {
+    if (!bridge) return;
+    if (!window.confirm('Clear profile + all Wonder Moments on this device?')) return;
+    const empty = emptyStore();
+    await saveStore(bridge, empty);
+    const seeded = await ensureActiveKid(bridge);
+    setMemory(seeded);
+  };
+
+  function currentMemoryBlock(): string | undefined {
+    const m = memoryRef.current;
+    const active = getActive(m);
+    if (!active) return undefined;
+    const history = historyFor(m, active.id);
+    const insights = computeInsights(history);
+    return buildMemoryContext(active, recent(history, 5), insights);
+  }
+
+  function activeInsights() {
+    const active = getActive(memoryRef.current);
+    const history = active ? historyFor(memoryRef.current, active.id) : [];
+    return computeInsights(history);
+  }
+
   const reason = stageReason();
   const keyConfigured = geminiConfigured();
   const currentTone: Tone | null =
     state.kind === 'showing' ? state.tone :
     state.kind === 'transcript' ? state.tone :
     null;
+  const currentMode: Mode =
+    state.kind === 'showing' ? state.mode :
+    state.kind === 'transcript' ? state.mode :
+    mode;
+  const activeKid = getActive(memory);
+  const history = historyFor(memory, activeKid?.id ?? null);
+  const insights = computeInsights(history);
 
   return (
     <div className="wrap">
@@ -229,6 +325,16 @@ export default function App() {
           {isMock ? 'mock bridge' : 'SDK loaded'}
         </span>
       </header>
+
+      <ProfileCard
+        kid={activeKid}
+        editing={editingProfile}
+        insights={insights}
+        onEdit={() => setEditingProfile(true)}
+        onSave={saveProfile}
+        onCancel={() => setEditingProfile(false)}
+        onReset={resetMemory}
+      />
 
       <section className="mode">
         <div className="label">AI mode</div>
@@ -244,9 +350,23 @@ export default function App() {
           <span className="mode-note">
             {reason === 'no-key' && 'No API key — forced to stage mode'}
             {reason === 'user-toggle' && 'Canned Q/A, zero network'}
-            {reason === 'off' && 'Audio → Gemini → Say / Ask / Try (streaming)'}
+            {reason === 'off' && 'Audio → Gemini → Say / Ask / Try (streaming, memory-aware)'}
           </span>
           {currentTone && <span className="tone-chip">tone: {currentTone}</span>}
+        </div>
+        <div className="mode-row" style={{ marginTop: 8 }}>
+          <button
+            className={currentMode === 'answer' ? 'on' : 'off'}
+            onClick={toggleMode}
+            title="Swipe-down (or B) to toggle on glasses"
+          >
+            {MODE_LABEL[currentMode]}
+          </button>
+          <span className="mode-note">
+            {currentMode === 'answer'
+              ? 'Direct Say / Ask / Try — default posture'
+              : 'Playful counter-question grounded in the kid\u2019s question · safety override in prompt'}
+          </span>
         </div>
       </section>
 
@@ -265,21 +385,13 @@ export default function App() {
             <button onClick={() => devFire(EventType.DOUBLE_CLICK)}>double (D)</button>
             <button onClick={() => devFire(EventType.CLICK)}>click (Space)</button>
             <button onClick={() => devFire(EventType.SCROLL_TOP)}>swipe-up (T)</button>
+            <button onClick={() => devFire(EventType.SCROLL_BOTTOM)}>swipe-down (B)</button>
             <button onClick={autoDrive} title="One-shot rehearsal">auto-drive (R)</button>
           </div>
         )}
       </section>
 
-      <section className="trail">
-        <div className="label">Wonder Trail ({trail.length})</div>
-        <ul>
-          {trail.slice(-5).reverse().map((item, i) => (
-            <li key={i}>
-              <span className="topic">{item.topic}</span> {item.text}
-            </li>
-          ))}
-        </ul>
-      </section>
+      <Timeline history={history} />
 
       <section className="log">
         <div className="label">Event log</div>
@@ -289,13 +401,128 @@ export default function App() {
   );
 }
 
+// ────────────────────── subcomponents ──────────────────────
+
+function ProfileCard(props: {
+  kid: KidProfile | null;
+  editing: boolean;
+  insights: ReturnType<typeof computeInsights>;
+  onEdit: () => void;
+  onSave: (kid: KidProfile) => void;
+  onCancel: () => void;
+  onReset: () => void;
+}) {
+  const { kid, editing, insights, onEdit, onSave, onCancel, onReset } = props;
+
+  if (!kid) {
+    return (
+      <section className="profile empty">
+        <div className="label">Kid profile</div>
+        <div className="profile-empty">No active profile.</div>
+      </section>
+    );
+  }
+
+  if (!editing) {
+    const interests = kid.interests.join(', ') || '—';
+    return (
+      <section className="profile">
+        <div className="label">Kid profile · memory</div>
+        <div className="profile-row">
+          <div className="profile-summary">
+            <strong>{kid.name}</strong> · age {kid.age} · {interests}
+            <div className="profile-sub">
+              {insights.totalMoments} Wonder Moments
+              {insights.dominantTopic && ` · top topic: ${insights.dominantTopic}`}
+              {insights.preferredTone && ` · preferred tone: ${insights.preferredTone}`}
+            </div>
+          </div>
+          <div className="profile-actions">
+            <button onClick={onEdit}>edit</button>
+            <button onClick={onReset} className="danger">reset</button>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  return <ProfileEditor kid={kid} onSave={onSave} onCancel={onCancel} />;
+}
+
+function ProfileEditor(props: { kid: KidProfile; onSave: (kid: KidProfile) => void; onCancel: () => void }) {
+  const { kid, onSave, onCancel } = props;
+  const [name, setName] = useState(kid.name);
+  const [age, setAge] = useState(String(kid.age));
+  const [interestsText, setInterestsText] = useState(kid.interests.join(', '));
+  const [level, setLevel] = useState(kid.languageLevel);
+
+  return (
+    <section className="profile editing">
+      <div className="label">Editing kid profile</div>
+      <div className="profile-grid">
+        <label>Name <input value={name} onChange={(e) => setName(e.target.value)} /></label>
+        <label>Age <input type="number" min={2} max={14} value={age} onChange={(e) => setAge(e.target.value)} /></label>
+        <label className="wide">
+          Interests (comma-separated)
+          <input value={interestsText} onChange={(e) => setInterestsText(e.target.value)} />
+        </label>
+        <label>
+          Reading level
+          <select value={level} onChange={(e) => setLevel(e.target.value as KidProfile['languageLevel'])}>
+            <option value="preschool">preschool</option>
+            <option value="early-elementary">early elementary</option>
+            <option value="late-elementary">late elementary</option>
+          </select>
+        </label>
+      </div>
+      <div className="profile-actions">
+        <button
+          className="primary"
+          onClick={() => onSave({
+            ...kid,
+            name: name.trim() || 'Kid',
+            age: Number(age) || kid.age,
+            interests: interestsText.split(',').map((s) => s.trim()).filter(Boolean),
+            languageLevel: level,
+          })}
+        >save</button>
+        <button onClick={onCancel}>cancel</button>
+      </div>
+    </section>
+  );
+}
+
+function Timeline(props: { history: ReturnType<typeof historyFor> }) {
+  const items = props.history.slice(-8).reverse();
+  return (
+    <section className="trail">
+      <div className="label">Wonder Trail ({props.history.length})</div>
+      {items.length === 0 ? (
+        <div className="profile-sub">No saved moments yet. Double-press on a shown card to save.</div>
+      ) : (
+        <ul>
+          {items.map((m) => (
+            <li key={m.id}>
+              <span className="topic">{m.topic}</span>
+              <span className="t-q">{m.question}</span>
+              <span className="t-say">{m.say}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+// ────────────────────── helpers ──────────────────────
+
 function renderForState(state: State): string {
   switch (state.kind) {
     case 'idle': return renderIdle();
     case 'listening': return renderListening();
     case 'thinking': return renderThinking(state.tick);
     case 'transcript': return renderTranscript(state.q);
-    case 'showing': return renderCard(state.q, state.card, state.tone);
+    case 'showing': return renderCard(state.q, state.card, state.tone, state.mode);
     case 'saved': return renderSaved(state.q);
   }
 }
@@ -303,18 +530,25 @@ function renderForState(state: State): string {
 // Decide how to turn the captured audio into a Question.
 async function resolveQuestion(
   frames: Uint8Array[],
-  cursor: number,
   stage: boolean,
   mock: boolean,
   tone: Tone,
-  onPartialSay: (s: string) => void
+  mode: Mode,
+  memoryBlock: string | undefined,
+  onPartialSay: (s: string) => void,
 ): Promise<Question> {
   const canned = () => {
-    // Round-robin through DEMO_QUESTIONS. Tone cycling in stage mode just
-    // picks a different canned entry to demonstrate variation.
-    const toneIdx = TONES.indexOf(tone);
-    const base = DEMO_QUESTIONS[cursor % DEMO_QUESTIONS.length];
-    return toneIdx <= 0 ? base : { ...base, say: `[${tone}] ${base.say}`.slice(0, 60) };
+    const base = DEMO_QUESTIONS[Math.floor(Math.random() * DEMO_QUESTIONS.length)];
+    if (mode === 'answer') return base;
+    // Stage-mode Bounce: repurpose the canned content into the Bounce
+    // shape so the demo works offline. Not as funny as live Gemini, but
+    // the shape lets the whole flow run.
+    return {
+      ...base,
+      say: `What color should the ${stagedNoun(base.text)} be?`.slice(0, 60),
+      ask: `Who decides what colors things are?`.slice(0, 50),
+      try: base.say.slice(0, 55),
+    };
   };
 
   if (stage || mock) return canned();
@@ -328,9 +562,18 @@ async function resolveQuestion(
 
   try {
     const wav = pcmToWav(pcm, PCM_SAMPLE_RATE);
-    return await askGeminiAudio(wav, tone, { onPartialSay });
+    return await askGeminiAudio(wav, tone, mode, { onPartialSay }, memoryBlock);
   } catch (err) {
     console.warn('[wondercue] Gemini failed; falling back to canned:', err);
     return canned();
   }
+}
+
+// Crude noun lift from a canned question text, just for the stage-mode Bounce
+// fallback to feel grounded. Picks the last non-function word.
+function stagedNoun(q: string): string {
+  const stop = new Set(['the', 'a', 'an', 'is', 'are', 'out', 'in', 'at', 'on', 'of']);
+  const words = q.toLowerCase().replace(/[^a-z\s]/g, '').split(/\s+/).filter(Boolean);
+  for (let i = words.length - 1; i >= 0; i--) if (!stop.has(words[i])) return words[i];
+  return 'thing';
 }

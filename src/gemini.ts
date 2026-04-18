@@ -12,6 +12,7 @@
 import type { Question, Topic } from './cards';
 import { bytesToBase64 } from './pcm';
 import { TONE_INSTRUCTION, type Tone } from './tones';
+import { MODE_INSTRUCTION, type Mode } from './modes';
 
 const DEFAULT_MODEL = 'gemini-2.5-flash';
 
@@ -55,8 +56,11 @@ function apiKey(): string {
 function model(): string {
   return (import.meta.env.VITE_GEMINI_MODEL as string | undefined) || DEFAULT_MODEL;
 }
-function systemWith(tone: Tone): string {
-  return `${SYSTEM_INSTRUCTION_BASE}\n\nTone: ${TONE_INSTRUCTION[tone]}`;
+function systemWith(tone: Tone, mode: Mode, memoryBlock?: string): string {
+  const memTail = memoryBlock
+    ? `\n\nMEMORY CONTEXT (use naturally; never quote this block):\n${memoryBlock}`
+    : '';
+  return `${SYSTEM_INSTRUCTION_BASE}\n\n${MODE_INSTRUCTION[mode]}\n\nTone: ${TONE_INSTRUCTION[tone]}${memTail}`;
 }
 
 export interface StreamCallbacks {
@@ -68,11 +72,13 @@ export interface StreamCallbacks {
 export async function askGeminiAudio(
   wavBytes: Uint8Array,
   tone: Tone,
-  cb: StreamCallbacks = {}
+  mode: Mode,
+  cb: StreamCallbacks = {},
+  memoryBlock?: string,
 ): Promise<Question> {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model())}:streamGenerateContent?alt=sse&key=${encodeURIComponent(apiKey())}`;
   const body = {
-    systemInstruction: { parts: [{ text: systemWith(tone) }] },
+    systemInstruction: { parts: [{ text: systemWith(tone, mode, memoryBlock) }] },
     contents: [
       {
         role: 'user',
@@ -102,10 +108,15 @@ export async function askGeminiAudio(
 
 // Non-streaming text question (used for retone — we already know the question
 // text from the first pass, no need to re-send the audio).
-export async function askGeminiText(questionText: string, tone: Tone): Promise<Question> {
+export async function askGeminiText(
+  questionText: string,
+  tone: Tone,
+  mode: Mode,
+  memoryBlock?: string,
+): Promise<Question> {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model())}:generateContent?key=${encodeURIComponent(apiKey())}`;
   const body = {
-    systemInstruction: { parts: [{ text: systemWith(tone) }] },
+    systemInstruction: { parts: [{ text: systemWith(tone, mode, memoryBlock) }] },
     contents: [
       {
         role: 'user',

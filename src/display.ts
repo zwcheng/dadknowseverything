@@ -10,12 +10,12 @@
 import type { EvenBridgeLike } from './bridge';
 import type { Question, Topic } from './cards';
 import { TONE_LABEL, type Tone } from './tones';
+import { CARD_LABELS as MODE_CARD_LABELS, MODE_GLYPH, type Mode } from './modes';
 
 export const PAGE_ID = 1;
 export const CARD_CONTAINER_ID = 1;
 export const CARD_CONTAINER_NAME = 'card';
 
-const CARD_LABELS = ['SAY', 'ASK', 'TRY'] as const;
 export type CardIndex = 0 | 1 | 2;
 
 // ASCII-only glyphs chosen so they render on G2's LVGL default font, which
@@ -37,10 +37,13 @@ export function spinnerFrame(tick: number): string {
 }
 
 // Card render: glyph + label + index, then the body directly below.
-// Only non-default tones get a tone label to keep the header compact.
-export function renderCard(q: Question, idx: CardIndex, tone: Tone): string {
-  const glyph = TOPIC_GLYPH[q.topic] ?? '\u2022';
-  const header = `${glyph} ${CARD_LABELS[idx]} (${idx + 1}/3)`;
+// The glyph leads with mode (o for Answer, ? for Bounce) so the parent
+// sees the posture at a glance without a second line.
+export function renderCard(q: Question, idx: CardIndex, tone: Tone, mode: Mode): string {
+  const glyph = MODE_GLYPH[mode];
+  const label = MODE_CARD_LABELS[mode][idx];
+  const topicGlyph = TOPIC_GLYPH[q.topic] ?? '\u2022';
+  const header = `${glyph}${topicGlyph} ${label} (${idx + 1}/3)`;
   const body = idx === 0 ? q.say : idx === 1 ? q.ask : q.try;
   const toneSuffix = tone === 'simple' ? '' : `  ${TONE_LABEL[tone]}`;
   return `${header}${toneSuffix}\n${body}`;
