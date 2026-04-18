@@ -68,7 +68,10 @@ export interface StreamCallbacks {
   onPartialSay?: (text: string) => void;
 }
 
-// Streaming audio → structured JSON with partial SAY emission.
+// Streaming audio → structured JSON with partial SAY emission. On stream
+// failure (truncated JSON, early abort) we transparently retry once on
+// the non-streaming endpoint — the same request usually lands cleanly
+// without streaming complexity. This is the demo-reliability net.
 export async function askGeminiAudio(
   wavBytes: Uint8Array,
   tone: Tone,
@@ -76,8 +79,64 @@ export async function askGeminiAudio(
   cb: StreamCallbacks = {},
   memoryBlock?: string,
 ): Promise<Question> {
+  try {
+    return await askGeminiAudioStream(wavBytes, tone, mode, cb, memoryBlock);
+  } catch (err) {
+    const msg = (err as Error)?.message || String(err);
+    if (!msg.includes('JSON parse failed') && !msg.includes('empty')) throw err;
+    console.warn('[wondercue] stream path failed, retrying non-streaming:', msg);
+    return await askGeminiAudioOnce(wavBytes, tone, mode, memoryBlock);
+  }
+}
+
+async function askGeminiAudioStream(
+  wavBytes: Uint8Array,
+  tone: Tone,
+  mode: Mode,
+  cb: StreamCallbacks,
+  memoryBlock?: string,
+): Promise<Question> {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model())}:streamGenerateContent?alt=sse&key=${encodeURIComponent(apiKey())}`;
-  const body = {
+  const body = audioBody(wavBytes, tone, mode, memoryBlock);
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok || !res.body) {
+    const msg = await res.text().catch(() => '');
+    throw new Error(`Gemini HTTP ${res.status}: ${msg.slice(0, 200)}`);
+  }
+  return consumeStream(res.body, cb);
+}
+
+// Non-streaming equivalent. Used as the retry path and directly reachable
+// if we ever want to disable streaming for reliability.
+async function askGeminiAudioOnce(
+  wavBytes: Uint8Array,
+  tone: Tone,
+  mode: Mode,
+  memoryBlock?: string,
+): Promise<Question> {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model())}:generateContent?key=${encodeURIComponent(apiKey())}`;
+  const body = audioBody(wavBytes, tone, mode, memoryBlock);
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const msg = await res.text().catch(() => '');
+    throw new Error(`Gemini HTTP ${res.status}: ${msg.slice(0, 200)}`);
+  }
+  const json = await res.json();
+  const text: string | undefined = json?.candidates?.[0]?.content?.parts?.find((p: any) => p.text)?.text;
+  if (!text) throw new Error('Gemini: empty response (non-stream retry)');
+  return finalize(text);
+}
+
+function audioBody(wavBytes: Uint8Array, tone: Tone, mode: Mode, memoryBlock?: string) {
+  return {
     systemInstruction: { parts: [{ text: systemWith(tone, mode, memoryBlock) }] },
     contents: [
       {
@@ -94,16 +153,6 @@ export async function askGeminiAudio(
       temperature: 0.8,
     },
   };
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok || !res.body) {
-    const msg = await res.text().catch(() => '');
-    throw new Error(`Gemini HTTP ${res.status}: ${msg.slice(0, 200)}`);
-  }
-  return consumeStream(res.body, cb);
 }
 
 // Non-streaming text question (used for retone — we already know the question
@@ -151,6 +200,7 @@ async function consumeStream(stream: ReadableStream<Uint8Array>, cb: StreamCallb
   let accumulated = '';
   let sentQuestion = false;
   let lastPartialSay = '';
+  let eventsSeen = 0;
 
   // Handle one SSE event payload (the JSON object after `data: `).
   const handleSseEvent = (eventBody: string) => {
@@ -165,11 +215,19 @@ async function consumeStream(stream: ReadableStream<Uint8Array>, cb: StreamCallb
     } catch {
       return;
     }
-    const parts: any[] | undefined = json?.candidates?.[0]?.content?.parts;
+    // Surface any safety / finish-reason signal in the top-level candidate.
+    // A finishReason of SAFETY, RECITATION, or OTHER means Gemini cut us off.
+    const cand = json?.candidates?.[0];
+    const finish = cand?.finishReason;
+    if (finish && finish !== 'STOP') {
+      console.warn(`[wondercue] Gemini finishReason=${finish}`, cand);
+    }
+    const parts: any[] | undefined = cand?.content?.parts;
     if (!parts) return;
     for (const p of parts) {
       if (typeof p.text === 'string') accumulated += p.text;
     }
+    eventsSeen++;
 
     // Try to extract questionText once, then stream the partial say.
     if (!sentQuestion) {
@@ -201,6 +259,7 @@ async function consumeStream(stream: ReadableStream<Uint8Array>, cb: StreamCallb
     }
   }
   if (buffer.trim()) handleSseEvent(buffer);
+  console.info(`[wondercue] Gemini stream done: ${eventsSeen} events, ${accumulated.length} chars accumulated`);
   return finalize(accumulated);
 }
 
@@ -223,11 +282,11 @@ function unescapeJson(s: string): string {
 function finalize(text: string): Question {
   const parsed = tryParseLenient(text);
   if (!parsed) {
-    // Log the raw text so we can see what Gemini actually emitted. Truncate
-    // because transcripts + prompt echoes can be long.
-    const preview = text.slice(0, 400).replace(/\s+/g, ' ');
-    console.warn('[wondercue] Gemini JSON parse failed. First 400 chars:\n', preview);
-    throw new Error(`Gemini: JSON parse failed (got: ${preview.slice(0, 120)}\u2026)`);
+    const full = text.replace(/\s+/g, ' ');
+    console.warn(`[wondercue] Gemini JSON parse failed. Raw length: ${text.length}. Full text:\n`, text);
+    const preview = full.slice(0, 120);
+    const suffix = full.length > 120 ? '\u2026' : '';
+    throw new Error(`Gemini: JSON parse failed (len=${text.length}: ${preview}${suffix})`);
   }
   return {
     text: String(parsed.questionText ?? '').trim() || '(unclear)',
