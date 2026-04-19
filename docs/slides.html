@@ -6,104 +6,219 @@
 <title>DadKnowsEVERYTHING — Pitch Deck</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg:        #0b0d10;
-    --panel:     #12161b;
-    --panel-2:   #1a2028;
-    --ink:       #e8edf2;
-    --muted:     #7a8591;
-    --green:     #79ff8c;
-    --green-dim: #3da053;
-    --accent:    #68a0ff;
-    --warn:      #ffb86b;
-    --line:      #1c232b;
+    /* Saturday-afternoon palette — confident, not pastel. */
+    --paper:      #f9edc8;     /* warm cream, a touch richer */
+    --paper-deep: #f2dfa0;
+    --sky-wash:   #e0efff;
+    --panel:      #fffcf3;
+    --ink:        #14222e;
+    --muted:      #566875;
+    --sky:        #1e7bb8;     /* deep confident blue */
+    --sky-deep:   #13568a;
+    --lawn:       #5aa32d;     /* chlorophyll, not pastel */
+    --lawn-deep:  #3d7c18;
+    --amber:      #d47f12;     /* beer-bottle-in-sunlight */
+    --amber-deep: #a4610a;
+    --brick:      #b8452b;
+    --oak:        #1a2e3f;     /* deep charcoal-navy for law numbers, accents */
+    --line:       #dcca92;
+
+    /* G2 mockups keep their authentic green-on-black look. */
+    --g2-bg:      #0a0d0a;
+    --g2-green:   #7aff8c;
+    --g2-dim:     #3da053;
   }
   *, *::before, *::after { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; height: 100%; }
   body {
-    background: var(--bg);
+    background: var(--paper);
+    background-image:
+      radial-gradient(ellipse at top, rgba(30,123,184,0.14), transparent 60%),
+      radial-gradient(ellipse at bottom, rgba(90,163,45,0.10), transparent 60%);
+    background-attachment: fixed;
     color: var(--ink);
     font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
     font-size: 18px;
-    line-height: 1.5;
+    line-height: 1.55;
     overflow: hidden;
   }
   .deck { position: fixed; inset: 0; }
   .slide {
     position: absolute;
     inset: 0;
-    padding: clamp(28px, 4vw, 56px) clamp(28px, 5vw, 72px) clamp(52px, 6vw, 72px);
+    padding: clamp(28px, 4vw, 56px) clamp(32px, 5.5vw, 80px) clamp(58px, 6vw, 80px);
     display: none;
     flex-direction: column;
     justify-content: center;
-    gap: clamp(12px, 1.6vw, 20px);
-    animation: fadein 240ms ease-out;
+    gap: clamp(14px, 1.6vw, 22px);
+    animation: fadein 260ms ease-out;
     overflow: hidden;
   }
   .slide.active { display: flex; }
   @keyframes fadein {
-    from { opacity: 0; transform: translateY(6px); }
+    from { opacity: 0; transform: translateY(8px); }
     to   { opacity: 1; transform: translateY(0); }
   }
-  h1 { font-size: clamp(28px, 4vw, 52px); font-weight: 700; letter-spacing: -0.5px; margin: 0; line-height: 1.08; }
-  h1.hero { font-size: clamp(42px, 7vw, 84px); line-height: 1.02; overflow-wrap: break-word; }
-  h2 { font-size: clamp(20px, 2.6vw, 32px); font-weight: 600; margin: 0; letter-spacing: -0.3px; }
-  h3 { font-size: clamp(13px, 1.4vw, 18px); font-weight: 500; color: var(--muted); margin: 0; letter-spacing: 0.6px; text-transform: uppercase; }
+  h1 { font-size: clamp(30px, 4.4vw, 58px); font-weight: 800; letter-spacing: -0.8px; margin: 0; line-height: 1.06; }
+  h1.hero { font-size: clamp(46px, 7.4vw, 92px); line-height: 1.0; letter-spacing: -1.5px; }
+  h2 { font-size: clamp(22px, 2.6vw, 34px); font-weight: 700; margin: 0; letter-spacing: -0.3px; }
+  h3 {
+    font-size: clamp(12px, 1.3vw, 15px);
+    font-weight: 700;
+    color: var(--sky-deep);
+    margin: 0;
+    letter-spacing: 1.8px;
+    text-transform: uppercase;
+  }
   p { margin: 0; max-width: 1000px; }
-  p.lead { font-size: clamp(15px, 1.7vw, 22px); color: var(--ink); }
+  p.lead { font-size: clamp(17px, 1.85vw, 24px); color: var(--ink); line-height: 1.45; }
   p.muted { color: var(--muted); }
-  strong.green { color: var(--green); font-weight: 600; }
-  strong.accent { color: var(--accent); font-weight: 600; }
-  em.accent { color: var(--accent); font-style: normal; }
+  em.sky   { color: var(--sky-deep); font-style: normal; font-weight: 700; }
+  em.lawn  { color: var(--lawn-deep); font-style: normal; font-weight: 700; }
+  em.amber { color: var(--amber-deep); font-style: normal; font-weight: 700; }
+  strong.accent { color: var(--sky-deep); font-weight: 700; }
 
-  /* Dense-info cards used by one-pagers */
-  .frame {
+  /* Card primitive */
+  .card {
     background: var(--panel);
     border: 1px solid var(--line);
     border-radius: 14px;
-    padding: 18px 20px;
+    padding: 20px 22px;
     display: flex;
     flex-direction: column;
     gap: 10px;
+    box-shadow: 0 2px 6px rgba(20,34,46,0.05), 0 12px 28px rgba(20,34,46,0.06);
   }
-  .frame .k {
+  .card .tag {
     font-family: 'JetBrains Mono', monospace;
     font-size: 11px;
-    letter-spacing: 1.2px;
-    color: var(--green);
+    letter-spacing: 1.4px;
+    font-weight: 700;
     text-transform: uppercase;
+    color: var(--sky-deep);
   }
-  .frame .t { font-size: clamp(17px, 1.9vw, 22px); font-weight: 600; color: var(--ink); line-height: 1.25; }
-  .frame .b { font-size: clamp(13px, 1.4vw, 16px); color: var(--muted); line-height: 1.48; }
-  .frame.accent .k { color: var(--accent); }
-  .frame.warn .k   { color: var(--warn); }
+  .card.lawn .tag   { color: var(--lawn-deep); }
+  .card.amber .tag  { color: var(--amber-deep); }
+  .card.brick .tag  { color: var(--brick); }
+  .card .headline  { font-size: clamp(18px, 2vw, 24px); font-weight: 700; color: var(--ink); line-height: 1.22; }
+  .card .body      { font-size: clamp(14px, 1.4vw, 16px); color: var(--muted); line-height: 1.55; }
+  .card .body strong { color: var(--ink); }
 
-  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  .grid-22 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; flex: 1; align-content: start; }
-  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-  .split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; align-items: stretch; }
+  .grid-2  { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .grid-22 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; flex: 1; align-content: start; }
+  .grid-3  { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .grid-4  { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+  .split   { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 26px; align-items: stretch; }
+  .split-7-5 { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 30px; align-items: center; }
 
-  /* G2 screen mockups */
+  /* ─── Images ──────────────────────────────────────────── */
+
+  /* Full-bleed hero behind title/close slides */
+  .hero-bg {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    z-index: 0;
+    pointer-events: none;
+  }
+  .hero-bg img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    filter: saturate(1.08) contrast(1.03);
+  }
+  /* Gradient wash keeps text readable while letting the photo breathe. */
+  .hero-bg.wash-left::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      100deg,
+      rgba(20,34,46,0.90) 0%,
+      rgba(20,34,46,0.78) 38%,
+      rgba(20,34,46,0.35) 62%,
+      rgba(20,34,46,0.05) 100%
+    );
+  }
+  .hero-bg.wash-right::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      260deg,
+      rgba(20,34,46,0.88) 0%,
+      rgba(20,34,46,0.72) 38%,
+      rgba(20,34,46,0.30) 62%,
+      rgba(20,34,46,0.05) 100%
+    );
+  }
+
+  /* Anything on a hero slide that isn't the background sits above it. */
+  .slide.has-hero > *:not(.hero-bg):not(.notes) {
+    position: relative;
+    z-index: 2;
+  }
+  .slide.has-hero h1,
+  .slide.has-hero p.lead,
+  .slide.has-hero .kicker {
+    color: var(--paper);
+    text-shadow: 0 2px 24px rgba(0,0,0,0.35);
+  }
+  .slide.has-hero p.lead.muted {
+    color: #e6dcb8;
+  }
+  .slide.has-hero h3 { color: var(--paper-deep); }
+  .slide.has-hero em.sky   { color: #7cc2ee; }
+  .slide.has-hero em.lawn  { color: #a5e37d; }
+  .slide.has-hero em.amber { color: #f5c47a; }
+
+  /* Inline portrait for slides 2 & 5 */
+  .portrait {
+    border-radius: 18px;
+    overflow: hidden;
+    border: 4px solid var(--panel);
+    box-shadow: 0 8px 18px rgba(20,34,46,0.12), 0 24px 60px rgba(20,34,46,0.18);
+    aspect-ratio: 4 / 5;
+    max-width: 340px;
+    width: 100%;
+    align-self: center;
+    justify-self: center;
+    transform: rotate(-1deg);
+  }
+  .portrait img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    filter: saturate(1.1) contrast(1.02);
+  }
+  .portrait.straight { transform: rotate(0); }
+  .portrait.tilt-r   { transform: rotate(1.2deg); }
+
+  /* ───────────────────────────────────────────────────────── */
+
+  /* G2 screen mockups (stay dark — it's the actual device) */
   .g2 {
-    background: #000;
-    border: 1px solid #1c2b1f;
-    border-radius: 6px;
-    padding: 14px 18px;
+    background: var(--g2-bg);
+    border: 1px solid #163319;
+    border-radius: 8px;
+    padding: 16px 20px;
     font-family: 'JetBrains Mono', ui-monospace, monospace;
-    color: var(--green);
-    box-shadow: inset 0 0 14px rgba(121,255,140,0.18), 0 0 20px rgba(121,255,140,0.1);
+    color: var(--g2-green);
+    box-shadow: inset 0 0 16px rgba(122,255,140,0.18), 0 0 22px rgba(122,255,140,0.12);
     white-space: pre-wrap;
-    line-height: 1.32;
-    font-size: clamp(13px, 1.5vw, 18px);
-    min-height: 120px;
+    line-height: 1.38;
+    font-size: clamp(13px, 1.4vw, 17px);
+    min-height: 150px;
   }
-  .g2 .g2-cursor {
+  .g2 .dot {
     display: inline-block;
-    width: 0.55em;
-    height: 1em;
-    background: var(--green);
+    width: 0.55em; height: 1em;
+    background: var(--g2-green);
     margin-left: 2px;
     vertical-align: -2px;
     animation: blink 1s steps(2) infinite;
@@ -119,41 +234,147 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
+    box-shadow: 0 2px 6px rgba(20,34,46,0.05), 0 12px 28px rgba(20,34,46,0.06);
   }
-  .g2-tile .tl { font-size: 10px; letter-spacing: 1.4px; color: var(--muted); text-transform: uppercase; }
+  .g2-tile .tl {
+    font-size: 11px;
+    letter-spacing: 1.2px;
+    color: var(--muted);
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+  .g2-tile .qlabel {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink);
+    line-height: 1.3;
+  }
 
   .chip {
     display: inline-block;
-    padding: 3px 10px;
+    padding: 4px 12px;
     font-size: 12px;
     font-family: 'JetBrains Mono', monospace;
-    color: var(--green);
-    border: 1px solid var(--green-dim);
+    color: var(--sky-deep);
+    border: 1px solid rgba(30,123,184,0.38);
     border-radius: 999px;
-    background: rgba(121,255,140,0.07);
-    letter-spacing: 0.5px;
+    background: rgba(30,123,184,0.11);
+    letter-spacing: 0.4px;
+    font-weight: 600;
   }
-  .chip.accent { color: var(--accent); border-color: #264569; background: rgba(104,160,255,0.08); }
-  .chip.warn   { color: var(--warn); border-color: #4a3620; background: rgba(255,184,107,0.08); }
-  .chip.muted  { color: var(--muted); border-color: var(--line); background: transparent; }
+  .chip.lawn  { color: var(--lawn-deep);  border-color: rgba(90,163,45,0.42);  background: rgba(90,163,45,0.11); }
+  .chip.amber { color: var(--amber-deep); border-color: rgba(212,127,18,0.42); background: rgba(212,127,18,0.11); }
+  .chip.muted { color: var(--muted);      border-color: var(--line);           background: rgba(220,202,146,0.3); }
   .chips { display: flex; gap: 8px; flex-wrap: wrap; }
 
-  /* Architecture SVG */
-  .arch { width: 100%; max-width: 100%; }
-  .arch text { font-family: 'Inter', sans-serif; fill: var(--ink); }
+  /* Highlight bar */
+  .hilite {
+    border-left: 4px solid var(--lawn);
+    padding: 6px 0 6px 18px;
+    font-size: clamp(17px, 2vw, 24px);
+    line-height: 1.35;
+    font-weight: 500;
+    color: var(--ink);
+    max-width: 1100px;
+  }
 
-  /* Presenter speaker notes */
+  /* Dad-quote list (slide 2) */
+  .quotes {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    font-size: clamp(15px, 1.6vw, 19px);
+    line-height: 1.4;
+  }
+  .quotes .q {
+    display: flex;
+    gap: 14px;
+    align-items: baseline;
+    color: var(--ink);
+  }
+  .quotes .q::before {
+    content: "\201C";
+    color: var(--amber-deep);
+    font-size: 1.6em;
+    line-height: 0.6;
+    font-weight: 700;
+  }
+  .quotes .q .after {
+    color: var(--muted);
+    font-size: 0.85em;
+    font-style: italic;
+  }
+
+  /* Dad Code list (slide 5) */
+  .laws {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .law {
+    display: grid;
+    grid-template-columns: 46px 1fr;
+    gap: 16px;
+    align-items: start;
+  }
+  .law .num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--paper);
+    background: var(--oak);
+    border-radius: 8px;
+    padding: 7px 0;
+    text-align: center;
+    letter-spacing: 1.2px;
+    box-shadow: 0 2px 6px rgba(20,34,46,0.18);
+  }
+  .law .t {
+    font-size: clamp(15px, 1.6vw, 19px);
+    line-height: 1.4;
+  }
+  .law .t strong { color: var(--ink); }
+  .law .t .hint { color: var(--muted); font-size: 0.88em; }
+
+  /* Flow line for "only on G2" slide */
+  .flow-line {
+    display: grid;
+    grid-template-columns: auto auto auto auto auto;
+    align-items: center;
+    gap: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: clamp(12px, 1.3vw, 15px);
+    color: var(--muted);
+  }
+  .flow-line .node {
+    padding: 10px 14px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--panel);
+    color: var(--ink);
+    font-weight: 700;
+    letter-spacing: 0.2px;
+  }
+  .flow-line .arrow {
+    color: var(--sky);
+    font-weight: 700;
+  }
+
+  /* Presenter notes */
   .notes {
     position: absolute;
     bottom: 22px;
-    left: clamp(28px, 5vw, 72px);
-    right: clamp(28px, 5vw, 72px);
+    left: clamp(32px, 5.5vw, 80px);
+    right: clamp(32px, 5.5vw, 80px);
     font-family: 'JetBrains Mono', monospace;
     font-size: 11px;
-    color: #4a525c;
+    color: #9aa4ae;
     letter-spacing: 0.4px;
     pointer-events: none;
+    line-height: 1.4;
+    z-index: 3;
   }
+  .slide.has-hero .notes { color: #cfc4a0; }
   body.hide-notes .notes { display: none; }
 
   /* HUD */
@@ -168,416 +389,368 @@
     font-size: 11px;
     color: var(--muted);
     pointer-events: none;
+    z-index: 10;
   }
-  nav.hud .counter { color: var(--ink); }
+  nav.hud .counter { color: var(--ink); font-weight: 700; }
   kbd {
-    background: var(--panel-2);
+    background: var(--panel);
     border: 1px solid var(--line);
-    padding: 0 5px;
-    border-radius: 3px;
+    padding: 1px 6px;
+    border-radius: 4px;
     font-family: inherit;
     font-size: 10px;
     color: var(--ink);
+    font-weight: 600;
   }
 
   /* Title slide */
-  .title-slide { align-items: flex-start; justify-content: center; gap: 24px; }
+  .title-slide { align-items: flex-start; justify-content: center; gap: 28px; }
   .title-slide .kicker {
-    color: var(--green);
+    color: var(--lawn-deep);
     font-family: 'JetBrains Mono', monospace;
-    letter-spacing: 2px;
+    letter-spacing: 2.6px;
     font-size: 13px;
+    font-weight: 700;
     text-transform: uppercase;
   }
-
-  /* Prize row */
-  .prize-row {
-    display: flex; gap: 10px;
+  .slide.has-hero.title-slide .kicker { color: #a5e37d; }
+  .title-slide .sig {
+    display: flex;
+    gap: 22px;
+    align-items: center;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
+    font-size: 12px;
     color: var(--muted);
-    letter-spacing: 0.5px;
+    letter-spacing: 0.4px;
   }
-  .prize-row span { padding: 4px 10px; border: 1px solid var(--line); border-radius: 4px; }
+  .slide.has-hero.title-slide .sig { color: #d9cfaa; }
+  .title-slide .sig .dot {
+    width: 6px; height: 6px;
+    background: var(--lawn);
+    border-radius: 50%;
+    display: inline-block;
+    margin: 0 8px 1px 0;
+    vertical-align: baseline;
+  }
+  .slide.has-hero.title-slide .sig .dot { background: #a5e37d; }
 
-  /* Gesture / flow callout lines */
-  .flow-row {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    gap: 8px 14px;
-    align-items: baseline;
-    font-size: clamp(13px, 1.4vw, 16px);
+  /* Small glasses icon */
+  .g2-icon {
+    stroke: var(--sky-deep);
+    fill: none;
+    stroke-width: 2;
   }
-  .flow-row .gkey {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
-    padding: 2px 7px;
-    border-radius: 4px;
-    background: var(--panel-2);
-    color: var(--ink);
-    letter-spacing: 0.3px;
-    border: 1px solid var(--line);
-    min-width: 110px;
-    text-align: center;
-  }
-  .flow-row .gwhat { color: var(--ink); }
-  .flow-row .gkey.nod { color: var(--green); border-color: #1d3a22; background: #102015; }
+  .slide.has-hero .g2-icon { stroke: #7cc2ee; }
 
-  /* Highlight bar */
-  .hilite {
-    border-left: 3px solid var(--green);
-    padding: 4px 0 4px 18px;
-    font-size: clamp(16px, 2vw, 22px);
-    line-height: 1.3;
-    font-weight: 500;
+  /* Two-column narrative */
+  .narr {
+    font-size: clamp(17px, 1.8vw, 22px);
+    line-height: 1.45;
     color: var(--ink);
-    max-width: 1000px;
+    max-width: 52ch;
   }
-  .src { color: var(--muted); font-size: 14px; margin-top: 6px; }
+  .narr + .narr { margin-top: 14px; }
 </style>
 </head>
 <body>
 <div class="deck" id="deck">
 
   <!-- ─────── 1 — Title ─────── -->
-  <section class="slide active title-slide" data-title="Title">
-    <div class="kicker">Build Day · Thinkspace Seattle · Even Realities</div>
+  <section class="slide active title-slide has-hero" data-title="Title">
+    <div class="hero-bg wash-left">
+      <!-- father-daughter portrait, warm & grounded -->
+      <img src="images/pexels-august-de-richelieu-4259705.jpg" alt="father holding daughter" />
+    </div>
+
+    <div class="kicker">Even Realities · Build Day · Seattle</div>
     <h1 class="hero">DadKnowsEVERYTHING.</h1>
-    <p class="lead" style="max-width: 980px;">
-      Even built glasses that <strong class="green">refused the AR playbook</strong>.
-      No camera. No speaker. One tiny display per lens. <em class="accent">Quiet Tech.</em>
+    <p class="lead" style="max-width: 880px;">
+      A hands-free <em class="sky">defense system</em> for the guy whose
+      name is on the t-shirt.
     </p>
-    <p class="lead muted" style="max-width: 980px;">
-      DadKnowsEVERYTHING is a real-time <strong class="green">curiosity copilot</strong> for
-      parent-child moments — built for a device nobody else could have shipped.
+    <p class="lead muted" style="max-width: 880px;">
+      Your kid asks. The glasses whisper three good plays. Dad looks like
+      he had it the whole time. Field-tested on actual children.
     </p>
-    <div style="display: flex; align-items: center; gap: 24px; margin-top: 10px;">
-      <svg width="180" height="56" viewBox="0 0 220 70" style="opacity: 0.8;">
-        <ellipse cx="55" cy="35" rx="48" ry="26" fill="none" stroke="#79ff8c" stroke-width="2"/>
-        <ellipse cx="165" cy="35" rx="48" ry="26" fill="none" stroke="#79ff8c" stroke-width="2"/>
-        <rect x="100" y="32" width="20" height="6" fill="#79ff8c" opacity="0.5"/>
+
+    <div class="sig" style="margin-top: 12px;">
+      <svg width="150" height="40" viewBox="0 0 220 70">
+        <ellipse class="g2-icon" cx="55" cy="35" rx="48" ry="24"/>
+        <ellipse class="g2-icon" cx="165" cy="35" rx="48" ry="24"/>
+        <rect x="100" y="32" width="20" height="6" fill="#7cc2ee" opacity="0.7"/>
       </svg>
-      <div class="prize-row">
-        <span>everyday use case</span>
-        <span>brand fit</span>
-        <span>people&#8217;s choice</span>
-      </div>
+      <span><span class="dot"></span>Built for Even G2 · no camera, no speaker, no excuse.</span>
     </div>
-    <div class="notes">[0:00–0:20 · Quiet Tech opener, land the "only on G2" framing, prize chips as a running promise]</div>
+    <div class="notes">[0:00–0:25 · Land the joke in the subtitle. The "name on the t-shirt" line is the whole pitch in ten words. Pause after "field-tested on actual children" — it gets a laugh.]</div>
   </section>
 
-  <!-- ─────── 2 — Whole picture one-pager ─────── -->
-  <section class="slide" data-title="The whole picture">
-    <h3>The whole picture</h3>
-    <h1>A category only Even G2 can own.</h1>
-    <p class="lead muted" style="max-width: 1000px;">
-      <strong class="green">Invisible copilots for in-person moments</strong> — where the
-      glass is the quietest member of the conversation, not the loudest.
-    </p>
+  <!-- ─────── 2 — The problem ─────── -->
+  <section class="slide" data-title="The problem">
+    <h3>The problem</h3>
+    <h1>Your kid is an auditor. You&#8217;re the witness.</h1>
 
-    <div class="grid-22" style="margin-top: 10px;">
-      <div class="frame">
-        <span class="k">the moment</span>
-        <span class="t">Kids ask a hundred whys a day.</span>
-        <span class="b">
-          Car rides. Walks. Grocery stores. Bedtime. Parents want to stay
-          present — not pull out a phone every time. Camera-AR glasses are
-          even worse: no parent asked for a lens pointed at their kid.
-        </span>
+    <div style="display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 5fr) minmax(0, 4fr); gap: 24px; margin-top: 18px; align-items: start;">
+      <!-- LEFT: the auditor herself -->
+      <div class="portrait tilt-r" style="margin-top: 14px;">
+        <img src="images/pexels-th2city-3178064.jpg" alt="young child with hand on cheek, thinking" />
       </div>
 
-      <div class="frame accent">
-        <span class="k">the product</span>
-        <span class="t">Say · Ask · Try. Answered or bounced.</span>
-        <span class="b">
-          Double-press. Kid asks. Three glanceable cards appear on the glasses.
-          Swipe-down flips to <em class="accent">Bounce</em> — a playful
-          counter-question grounded in the kid&#8217;s own words. Nod to save
-          to the Wonder Trail. Memory-aware, streaming, ~500 ms first paint.
-        </span>
-      </div>
-
-      <div class="frame">
-        <span class="k">the category</span>
-        <span class="t">Invisible copilots beat any phone or camera-AR.</span>
-        <span class="b">
-          Tutor. Language partner. Clinical handoff. Neurodiverse scaffolding.
-          Field work. Every lane shares the same rails: quiet, private, glanceable.
-          G2 becomes the reference platform — <strong class="green">daily-active
-          AR</strong>, a category AR has never owned.
-        </span>
-      </div>
-
-      <div class="frame warn">
-        <span class="k">the moat</span>
-        <span class="t">Memory grows. The software becomes yours.</span>
-        <span class="b">
-          Each saved moment feeds a local, parent-editable profile: kid&#8217;s
-          interests, reading level, the questions they keep returning to.
-          Next answer is personalized, grounded, and harder to replicate elsewhere.
-          Free tier is local. Paid tier is sync + insights. Never ad-targeted,
-          never training data.
-        </span>
-      </div>
-    </div>
-
-    <div class="notes">[0:20–1:20 · One slide, four frames. Read top-left → top-right as "problem → product", bottom-left → bottom-right as "category → moat". This is the whole story if the clock runs out.]</div>
-  </section>
-
-  <!-- ─────── 3 — Demo: Answer mode ─────── -->
-  <section class="slide" data-title="Demo · Answer">
-    <h3>Live demo · Answer mode</h3>
-    <h1>Double-press. Speak. Glanceable answer.</h1>
-
-    <div class="split" style="margin-top: 16px;">
-      <div style="display: flex; flex-direction: column; gap: 10px;">
-        <pre class="g2">| SAY
-The moon is always up there;<span class="g2-cursor"></span></pre>
-        <div class="chips"><span class="chip accent">streaming · ~500 ms</span><span class="chip muted">memory-aware prompt</span></div>
-
-        <pre class="g2">o* SAY (1/3)
-The moon is always up there;
-sunlight just hides it.</pre>
-        <div class="chips"><span class="chip">answer</span><span class="chip muted">tone: simple</span></div>
-      </div>
-
-      <div style="display: flex; flex-direction: column; gap: 10px; justify-content: center;">
-        <div class="flow-row">
-          <span class="gkey">double-press</span>
-          <span class="gwhat">Listen starts. Mic opens on the glasses.</span>
-        </div>
-        <div class="flow-row">
-          <span class="gkey">kid speaks</span>
-          <span class="gwhat">"Why is the moon out in the daytime?"</span>
-        </div>
-        <div class="flow-row">
-          <span class="gkey">click</span>
-          <span class="gwhat">Stop. Gemini stream begins — SAY paints live over a spinner.</span>
-        </div>
-        <div class="flow-row">
-          <span class="gkey">click</span>
-          <span class="gwhat">Cycle to ASK, then TRY.</span>
-        </div>
-        <div class="flow-row">
-          <span class="gkey nod">nod head</span>
-          <span class="gwhat">IMU catches it. Moment saved to Wonder Trail.</span>
-        </div>
-
-        <p class="muted" style="font-size: 14px; margin-top: 14px;">
-          No hands, no phone. Audio → Gemini 2.5 Flash inline. 16 kHz PCM16 native
-          (no resampling). Character budgets (60/50/55) enforced in prompt + clamp.
+      <!-- CENTER: narrative -->
+      <div style="padding-top: 6px;">
+        <p class="narr">
+          Preschoolers fire off <em class="sky">hundreds of questions a day</em>.
+          Most are innocent. Some are traps. A few are tests.
+        </p>
+        <p class="narr">
+          Dads have spent generations inventing deflections. We&#8217;ve
+          gotten good at it. We&#8217;ve also gotten predictable —
+          and our kids noticed.
         </p>
       </div>
-    </div>
 
-    <div class="notes">[1:20–2:40 · DO IT LIVE. If venue WiFi acts up, flip Stage mode and keep moving. Nod moment gets an "oh nice" if timing is right.]</div>
-  </section>
-
-  <!-- ─────── 4 — Demo: Bounce mode ─────── -->
-  <section class="slide" data-title="Demo · Bounce">
-    <h3>Live demo · Bounce mode</h3>
-    <h1>When the kid isn&#8217;t really asking.</h1>
-
-    <div class="grid-3" style="margin-top: 18px; align-items: stretch;">
-      <div class="g2-tile">
-        <span class="tl">1 · answer (straight)</span>
-        <pre class="g2">o* SAY (1/3)
-The moon is always up there;
-sunlight just hides it.</pre>
-      </div>
-      <div class="g2-tile">
-        <span class="tl">2 · swipe-down · bounce</span>
-        <pre class="g2">?* BOUNCE (1/3)
-Where do you think the moon
-goes during the day?</pre>
-      </div>
-      <div class="g2-tile">
-        <span class="tl">3 · click · twist</span>
-        <pre class="g2">?* TWIST (2/3)
-Does the moon take a nap?</pre>
+      <!-- RIGHT: the classic defenses -->
+      <div class="card amber">
+        <span class="tag">the classic defenses</span>
+        <div class="quotes">
+          <div class="q">Go ask your mom.<span class="after"> — strategic retreat</span></div>
+          <div class="q">Because that&#8217;s how it works.<span class="after"> — cosmic authority</span></div>
+          <div class="q">Well, why do <em>you</em> think so?<span class="after"> — the redirect</span></div>
+          <div class="q">Google it, kid.<span class="after"> — the surrender</span></div>
+          <div class="q">When you&#8217;re older.<span class="after"> — time dilation</span></div>
+        </div>
       </div>
     </div>
 
     <div class="hilite" style="margin-top: 18px;">
-      Same question. Two postures. The parent picks the moment — the glasses help them match it.
+      Every bail-out costs a little bit of the dad mystique. We propose
+      <em class="lawn">a better way to hold the line</em>.
     </div>
 
-    <div class="chips" style="margin-top: 12px;">
-      <span class="chip">grounded in the kid&#8217;s noun/premise</span>
-      <span class="chip">third card is always TRUTH — the real answer, one more click</span>
-      <span class="chip warn">safety override: medical / distress ignores Bounce, forces Answer</span>
-    </div>
-
-    <div class="notes">[2:40–3:20 · Hold for the laugh on TWIST. Safety override is the sentence that earns Brand Fit. The "truth-on-a-click" escape hatch closes any "you&#8217;re avoiding the question" objection.]</div>
+    <div class="notes">[0:25–1:05 · Read the quotes in dad-voice. Land the "a little bit of the dad mystique" line. This is where the audience decides you're the real deal.]</div>
   </section>
 
-  <!-- ─────── 5 — System blueprint one-pager ─────── -->
-  <section class="slide" data-title="Blueprint">
-    <h3>System blueprint · what the demo covers</h3>
-    <h1>Everything you&#8217;ll see. How it&#8217;s built.</h1>
+  <!-- ─────── 3 — The product ─────── -->
+  <section class="slide" data-title="The product">
+    <h3>The product</h3>
+    <h1>One screen. Three plays. No hands.</h1>
+    <p class="lead muted" style="max-width: 960px;">
+      Kid asks a question out loud. Dad double-taps the glasses.
+      Two seconds later, three options float on the lens. Dad picks one
+      in his head and says it out loud. Looks like his own genius.
+    </p>
 
-    <div class="split" style="margin-top: 16px;">
+    <div class="split" style="margin-top: 10px;">
       <div style="display: flex; flex-direction: column; gap: 10px;">
-        <div class="frame">
-          <span class="k">demo coverage</span>
-          <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 5px; font-size: clamp(13px, 1.4vw, 15px);">
-            <li>&#10003; audio capture via G2 mic (4-mic, 16 kHz PCM)</li>
-            <li>&#10003; streaming SAY into thinking view (~500 ms first paint)</li>
-            <li>&#10003; Say / Ask / Try card cycle</li>
-            <li>&#10003; tone retone (swipe-up · simple/playful/science)</li>
-            <li>&#10003; mode flip (swipe-down · Answer ↔ Bounce)</li>
-            <li>&#10003; IMU nod-to-save · shake-to-retone</li>
-            <li>&#10003; auto-pause when unworn (onDeviceStatusChanged)</li>
-            <li>&#10003; memory profile + Wonder Trail persistence</li>
-            <li>&#10003; stage-mode canned fallback (offline demo insurance)</li>
-          </ul>
-        </div>
+        <pre class="g2">o "Why is the moon out in the daytime?"
+
+D: The moon&#8217;s orbit places it above us by day too.
+O: And by what metric does day exclude the moon?
+E: The moon moonlights as a giant sleeping pigeon.</pre>
         <div class="chips">
-          <span class="chip">Vite + React + TS</span>
-          <span class="chip">@evenrealities/even_hub_sdk</span>
-          <span class="chip">Gemini 2.5 Flash</span>
-          <span class="chip muted">localStorage · no backend</span>
+          <span class="chip">hands-free · read-and-speak</span>
+          <span class="chip lawn">~2 second first paint</span>
+          <span class="chip muted">no phone involved</span>
         </div>
       </div>
 
-      <div class="frame" style="padding: 0; background: transparent; border: 0;">
-        <svg class="arch" viewBox="0 0 560 300" preserveAspectRatio="xMidYMid meet">
-          <defs>
-            <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
-              <path d="M0,0 L10,5 L0,10 z" fill="#79ff8c"/>
-            </marker>
-            <marker id="ar-b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
-              <path d="M0,0 L10,5 L0,10 z" fill="#68a0ff"/>
-            </marker>
-          </defs>
-          <g font-size="13" text-anchor="middle">
-            <g>
-              <rect x="10" y="110" width="130" height="68" rx="8" fill="#12161b" stroke="#1c232b"/>
-              <text x="75" y="140">Even G2</text>
-              <text x="75" y="160" font-size="11" fill="#79ff8c">mic · IMU · display</text>
-            </g>
-            <g>
-              <rect x="190" y="110" width="170" height="68" rx="8" fill="#12161b" stroke="#1c232b"/>
-              <text x="275" y="138">phone WebView</text>
-              <text x="275" y="156" font-size="11" fill="#68a0ff">FSM · memory · modes</text>
-              <text x="275" y="172" font-size="10" fill="#7a8591">local-only</text>
-            </g>
-            <g>
-              <rect x="410" y="110" width="140" height="68" rx="8" fill="#12161b" stroke="#1c232b"/>
-              <text x="480" y="138">Gemini 2.5 Flash</text>
-              <text x="480" y="156" font-size="11" fill="#79ff8c">streaming JSON</text>
-              <text x="480" y="172" font-size="10" fill="#7a8591">inline audio in</text>
-            </g>
-          </g>
-          <!-- forward arrows -->
-          <g stroke="#79ff8c" stroke-width="1.8" fill="none">
-            <line x1="140" y1="144" x2="187" y2="144" marker-end="url(#ar)"/>
-            <line x1="360" y1="144" x2="407" y2="144" marker-end="url(#ar)"/>
-          </g>
-          <!-- streaming return -->
-          <g stroke="#68a0ff" stroke-width="1.6" fill="none" stroke-dasharray="5 4">
-            <path d="M470,183 C 400,240 320,240 280,183" marker-end="url(#ar-b)"/>
-          </g>
-          <text x="375" y="245" fill="#68a0ff" font-size="11" text-anchor="middle">partial SAY tokens stream back</text>
-          <!-- textContainerUpgrade bridge -->
-          <g stroke="#79ff8c" stroke-width="1.6" fill="none">
-            <path d="M275,110 C 275,62 75,62 75,110" marker-end="url(#ar)"/>
-          </g>
-          <text x="175" y="55" fill="#79ff8c" font-size="11" text-anchor="middle">textContainerUpgrade (flicker-free)</text>
-          <!-- labels -->
-          <text x="165" y="200" fill="#7a8591" font-size="10" text-anchor="middle">BT 5.2</text>
-          <text x="383" y="200" fill="#7a8591" font-size="10" text-anchor="middle">HTTPS · SSE</text>
-        </svg>
+      <div style="display: flex; flex-direction: column; gap: 14px; justify-content: center;">
+        <div class="card">
+          <span class="tag">defensive</span>
+          <span class="headline">Answer the question. Accurately. With flair.</span>
+          <span class="body">Tweed-jacket voice. A real word the kid might not know, used correctly. No hedging, no &#8220;I don&#8217;t know.&#8221;</span>
+        </div>
+        <div class="card lawn">
+          <span class="tag">offensive</span>
+          <span class="headline">Volley a question back.</span>
+          <span class="body">Slyly sarcastic. Challenges an assumption the kid didn&#8217;t know they were making. Never a softball — this one&#8217;s supposed to make them <em>think</em>.</span>
+        </div>
+        <div class="card amber">
+          <span class="tag">escape</span>
+          <span class="headline">Break the chain with a laugh.</span>
+          <span class="body">Giddy, obviously absurd. The only field allowed to confabulate — because nobody&#8217;s going to mistake a sleeping pigeon for the truth.</span>
+        </div>
       </div>
     </div>
 
-    <div class="notes">[3:20–3:50 · Anchor on "everything you just saw fits this one picture". Left column = the checklist, right = the loop. Keep it moving.]</div>
+    <div class="notes">[1:05–1:50 · Point at each D/O/E row as you describe it. The pigeon line always lands — let it breathe.]</div>
   </section>
 
-  <!-- ─────── 6 — Memory + Platform ─────── -->
-  <section class="slide" data-title="Memory + platform">
-    <h3>Why it becomes software you keep</h3>
-    <h1>Memory is the moat. Platform is the lane.</h1>
+  <!-- ─────── 4 — How it plays ─────── -->
+  <section class="slide" data-title="Demo">
+    <h3>How it actually plays out</h3>
+    <h1>Same kid. Same glasses. Three different days.</h1>
 
-    <div class="split" style="margin-top: 14px;">
-      <div class="frame accent">
-        <span class="k">memory · local-first</span>
-        <div style="font-size: clamp(14px, 1.5vw, 16px); line-height: 1.55;">
-          <strong style="color: var(--ink);">Even</strong> · age 7 · space, dinosaurs, her dog Pepper<br/>
-          <span style="color: var(--muted);">
-            47 Wonder Moments · top topic: <em class="accent">space</em> · preferred tone: <em class="accent">playful</em>
-          </span>
-          <hr style="border: 0; border-top: 1px solid var(--line); margin: 12px 0;"/>
-          <div style="color: var(--muted); font-size: 12px;">next time Even asks about the moon:</div>
-          <div style="margin-top: 6px;">
-            <span style="color: var(--muted);">without memory:</span><br/>
-            &#8220;The moon is always up there; sunlight just hides it.&#8221;
-          </div>
-          <div style="margin-top: 10px;">
-            <span style="color: var(--muted);">with memory:</span><br/>
-            &#8220;Even, like you asked last week &mdash; same reason the stars hide.&#8221;
-          </div>
-        </div>
-        <div class="chips" style="margin-top: 10px;">
-          <span class="chip muted">never trained on</span>
-          <span class="chip muted">never ad-targeted</span>
-        </div>
+    <div class="grid-3" style="margin-top: 18px; align-items: stretch;">
+      <div class="g2-tile">
+        <span class="tl">Tuesday · the trap</span>
+        <div class="qlabel">&#8220;Why do dogs lick themselves?&#8221;</div>
+        <pre class="g2">D: Grooming. Saliva contains mild
+   antimicrobial enzymes.
+O: Have you surveyed the dog for
+   alternatives?
+E: Dogs are tiny audiophiles tuning
+   themselves to middle C.</pre>
       </div>
-
-      <div class="frame">
-        <span class="k">platform · the next five lanes</span>
-        <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; font-size: clamp(13px, 1.4vw, 15px);">
-          <li><strong class="green">parent</strong> — curiosity copilot · <span class="muted" style="color:var(--muted);">today</span></li>
-          <li><strong class="green">tutor / language</strong> — read-aloud prompts, bilingual practice at home</li>
-          <li><strong class="green">clinical / care</strong> — caregiver scripts, memory-loss conversation support</li>
-          <li><strong class="green">neurodiverse</strong> — social-cue cards, anxiety-defusing prompts</li>
-          <li><strong class="green">field work</strong> — silent interview cues, inspection checklists</li>
-        </ul>
-        <p class="b" style="margin-top: 10px; color: var(--muted);">
-          Every lane shares the same G2 rails: quiet, private, glanceable.
-          One lane ships today — five more get easier because of it.
-        </p>
+      <div class="g2-tile">
+        <span class="tl">Wednesday · the classic</span>
+        <div class="qlabel">&#8220;Why is the sky blue?&#8221;</div>
+        <pre class="g2">D: Air scatters short blue wavelengths
+   more than long red ones.
+O: What color, then, should it be?
+   Defend your proposal.
+E: The sky is a rejected flavor of
+   cotton candy. Respect it.</pre>
+      </div>
+      <div class="g2-tile">
+        <span class="tl">Thursday · the brutal one</span>
+        <div class="qlabel">&#8220;Why can&#8217;t I have dessert for breakfast?&#8221;</div>
+        <pre class="g2">D: Metabolic pacing matters more
+   than the clock. Protein first.
+O: Define &#8220;dessert.&#8221; Define
+   &#8220;breakfast.&#8221; Defend both.
+E: Dessert is a ceremonial food
+   known only to raccoons.</pre>
       </div>
     </div>
 
-    <div class="notes">[3:50–4:30 · This is the "why Even should care" slide. Memory = lock-in; platform = ecosystem. Hit both lines verbatim.]</div>
+    <div class="hilite" style="margin-top: 18px;">
+      Three ways to stay in charge. Dad picks the one that fits the mood —
+      and the kid walks away thinking he&#8217;s a <em class="lawn">genius</em>.
+    </div>
+
+    <div class="notes">[1:50–2:50 · Read the triads in dad-voice. The raccoons are a gift. Pause for laughter on Thursday.]</div>
   </section>
 
-  <!-- ─────── 7 — Close ─────── -->
-  <section class="slide" data-title="Close">
-    <h3 style="color: var(--green); letter-spacing: 2px;">Close</h3>
+  <!-- ─────── 5 — The Dad Code ─────── -->
+  <section class="slide" data-title="The Dad Code">
+    <h3>The rules</h3>
+    <h1>The Dad Code.</h1>
+    <p class="lead muted" style="max-width: 960px;">
+      Four rules baked into the prompt. Nonnegotiable.
+    </p>
+
+    <div class="split-7-5" style="margin-top: 14px;">
+      <div class="laws">
+        <div class="law">
+          <div class="num">01</div>
+          <div class="t">
+            <strong>Never say &#8220;I don&#8217;t know.&#8221;</strong> Not ever.
+            If no honest answer exists, the Defensive slot quietly becomes
+            another counter-question. <span class="hint">Dad doesn&#8217;t not-know things.</span>
+          </div>
+        </div>
+        <div class="law">
+          <div class="num">02</div>
+          <div class="t">
+            <strong>Never invent facts</strong> in Defensive or Offensive. Real
+            science only. <span class="hint">Confident and correct. Not confident-and-making-it-up.</span>
+          </div>
+        </div>
+        <div class="law">
+          <div class="num">03</div>
+          <div class="t">
+            <strong>Never attack the child.</strong> Dry wit is fine. Cruelty
+            is not. <span class="hint">Sarcasm aimed at ideas, never at people.</span>
+          </div>
+        </div>
+        <div class="law">
+          <div class="num">04</div>
+          <div class="t">
+            <strong>Safety overrides everything.</strong> Medical, danger,
+            grief — the academic voice and the goofy Escape both disappear.
+            Three warm, direct, honest answers in their place.
+            <span class="hint">Pride is a game. Kids aren&#8217;t.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="portrait">
+        <!-- dad reading a book with son — the Code in practice -->
+        <img src="images/pexels-timur-weber-9127164.jpg" alt="father reading with child" />
+      </div>
+    </div>
+
+    <div class="notes">[2:50–3:40 · Read them clean, no jokes. Law 4 is the one that earns trust from the whole room.]</div>
+  </section>
+
+  <!-- ─────── 6 — Why G2 ─────── -->
+  <section class="slide" data-title="Why G2">
+    <h3>Why this only works on G2</h3>
+    <h1>The constraints are the feature.</h1>
+
+    <div class="grid-4" style="margin-top: 16px;">
+      <div class="card">
+        <span class="tag">no camera</span>
+        <span class="body">Nobody asked for a lens pointed at their kid. Privacy isn&#8217;t an afterthought — it&#8217;s baked into the hardware.</span>
+      </div>
+      <div class="card lawn">
+        <span class="tag">no speaker</span>
+        <span class="body">Dad stays the voice in the room. Tech doesn&#8217;t narrate the conversation — it prompts the one human having it.</span>
+      </div>
+      <div class="card amber">
+        <span class="tag">hands-free</span>
+        <span class="body">No phone to fish out. No screen to glance at. Double-tap, read, speak. Eyes stay on the kid.</span>
+      </div>
+      <div class="card brick">
+        <span class="tag">quiet tech</span>
+        <span class="body">Take the glasses off — the mic closes. Put them on — it&#8217;s waiting. Designed to help, not dominate.</span>
+      </div>
+    </div>
+
+    <div class="flow-line" style="margin-top: 22px; justify-content: center;">
+      <span class="node">kid asks</span>
+      <span class="arrow">&rarr;</span>
+      <span class="node">G2 mic</span>
+      <span class="arrow">&rarr;</span>
+      <span class="node">three options on the lens</span>
+    </div>
+    <p class="muted" style="margin-top: 10px; font-size: 13px; text-align: center;">
+      Everything between those arrows is boring. What you see is the product.
+    </p>
+
+    <div class="notes">[3:40–4:25 · The four cards are a love letter to Even's design choices without being a commercial. Let the "constraints are the feature" line breathe.]</div>
+  </section>
+
+  <!-- ─────── 7 — Close + what's next ─────── -->
+  <section class="slide has-hero" data-title="Close">
+    <div class="hero-bg wash-right">
+      <!-- dad hugging son — warm, closing thought -->
+      <img src="images/pexels-timur-weber-9127113.jpg" alt="father hugging son" />
+    </div>
+
+    <h3 style="letter-spacing: 2px;">What&#8217;s next</h3>
     <h1 class="hero" style="max-width: 980px;">Not school on glasses.</h1>
-    <h1 class="hero" style="max-width: 980px; color: var(--green);">A real-time curiosity copilot for family life.</h1>
+    <h1 class="hero" style="max-width: 980px;">A <em class="lawn">confidence multiplier</em> for the guy holding the spatula.</h1>
 
-    <div class="grid-3" style="margin-top: 24px;">
-      <div class="frame">
-        <span class="k">everyday use case</span>
-        <span class="b">Car rides, walks, museums, bedtime. Daily-active, where AR never could reach.</span>
+    <div class="grid-3" style="margin-top: 26px;">
+      <div class="card">
+        <span class="tag">it remembers</span>
+        <span class="body">Every question auto-saves. The app learns your kid &mdash; interests, reading level, the stuff they keep asking. Next triad lands a little sharper.</span>
       </div>
-      <div class="frame accent">
-        <span class="k">brand fit</span>
-        <span class="b">Quiet Tech, camera-free, memory-local, auto-pauses when unworn. Every constraint you chose — we chose too.</span>
+      <div class="card lawn">
+        <span class="tag">it generalizes</span>
+        <span class="body"><strong style="color: var(--ink);">UncleKnowsEVERYTHING.</strong> <strong style="color: var(--ink);">GrandpaKnowsEVERYTHING.</strong> <strong style="color: var(--ink);">BigBrotherKnowsEVERYTHING.</strong> Same three plays, different persona.</span>
       </div>
-      <div class="frame warn">
-        <span class="k">people&#8217;s choice</span>
-        <span class="b">Bounce mode. Laughter was the vote.</span>
+      <div class="card amber">
+        <span class="tag">it respects everyone</span>
+        <span class="body">Local-first memory. Never ad-targeted. Never training data. Kids stay kids; dads keep their mystique.</span>
       </div>
     </div>
 
-    <div class="chips" style="margin-top: 22px;">
-      <span class="chip">Zhongwei Cheng &amp; Tim Collins</span>
+    <div class="chips" style="margin-top: 26px;">
       <span class="chip">github.com/zwcheng/dadknowseverything</span>
-      <span class="chip accent">thanks &mdash; questions?</span>
+      <span class="chip lawn">branch: persona-defense</span>
+      <span class="chip amber">thanks &mdash; questions welcome</span>
     </div>
 
-    <div class="notes">[4:30–5:00 · Land the tagline, breathe, then the three prize chips as the ask. Hold gaze for 2 seconds before "questions?"]</div>
+    <div class="notes">[4:25–5:00 · Land the tagline. Pause. Then let the chips do the Q&amp;A invitation. Hold eye contact before you go to questions.]</div>
   </section>
 
 </div>
 
 <nav class="hud">
   <span id="slide-title">Title</span>
-  <span><kbd>←</kbd> <kbd>→</kbd> / <kbd>Space</kbd> nav · <kbd>F</kbd> full · <kbd>P</kbd> toggle notes</span>
+  <span><kbd>&larr;</kbd> <kbd>&rarr;</kbd> / <kbd>Space</kbd> nav &middot; <kbd>F</kbd> full &middot; <kbd>P</kbd> notes</span>
   <span class="counter"><span id="slide-n">1</span> / <span id="slide-total">7</span></span>
 </nav>
 
